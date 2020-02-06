@@ -18,8 +18,9 @@ ctr = controller.Controller('0.001')
 # output_level = ctr.setOutput(encB.read())
 # motor.set_duty_cycle(output_level)
 try:
+    print ('firstline')
     while True:
-        print (encB.read() + ',' + utime.ticks_ms())
+        print (str(encB.read()) + ',' + str(utime.ticks_ms()))
         utime.sleep_ms(10)
 
 except KeyboardInterrupt:

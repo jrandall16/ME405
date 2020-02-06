@@ -25,7 +25,7 @@ class Serial:
 
     def read(self):
         if self.ser.is_open == True:
-            data = self.ser.read()
+            data = self.ser.readline()
             return data
         else:
             # return an error message here
@@ -33,7 +33,7 @@ class Serial:
 
     def write(self, data):
         if self.ser.is_open == True:
-            self.ser.write(data)
+            self.ser.write(data.encode())
         else:
             # throw error
             pass
