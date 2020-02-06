@@ -14,13 +14,13 @@ motor = motor_driver.MotorDriver()
 # motor.set_duty_cycle(30)
 encB = enc.Encoder('B')
 
-ctr = controller.Controller(encB.read())
+ctr = controller.Controller()
 # output_level = ctr.setOutput(encB.read())
 # motor.set_duty_cycle(output_level)
 try:
     print ('firstline')
     while True:
-        motor.set_duty_cycle(ctr.outputValue())
+        motor.set_duty_cycle(ctr.outputValue(encB.read()))
         print (str(encB.read()) + ',' + str(utime.ticks_ms()))
         utime.sleep_ms(10)
 

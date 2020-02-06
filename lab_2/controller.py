@@ -40,7 +40,7 @@ class Controller:
 
         return actuation
         
-    def setPoint (self):
+    def setPoint (self, point):
         ''' This method assigns the setpoint a new value for changes in set point
         during operation.
         '''
@@ -49,16 +49,16 @@ class Controller:
         self.setpoint = point
 
 
-    def setGain (self):
+    def setGain (self, gain):
         ''' This method assigns the control gain(s) a new value for special cases
         during operation. i.e. during motor startup to overcome stiction.
         '''      
         ## Kp is reset to the value of gain while running the motor controller
         self.Kp = gain
 
-    def readData(self, position):
-        ''' This method reads the data from the serial port and organizes it into columns of time and motor position.
-        '''
+    # def readData(self, position):
+    #     ''' This method reads the data from the serial port and organizes it into columns of time and motor position.
+    #     '''
 
-        self.data = (utime.ticks_ms(), ',', position, '\n')
+    #     self.data = (utime.ticks_ms(), ',', position, '\n')
 
