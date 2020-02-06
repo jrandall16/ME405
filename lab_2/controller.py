@@ -11,7 +11,7 @@ class Controller:
     ''' This class controlls the motor using proportional only control
     '''
     
-    def __init__ (self, position):
+    def __init__ (self):
         ''' This method initializes the controller.
         @ param Kp: Kp is the proportional gain for the controller
         @ param setpoint: setpoint is the desired value that eh motor is trying to reach
@@ -26,11 +26,8 @@ class Controller:
 
         ## gain is the motor steady state gain
         self.gain = 10
-
-        ## position is the current value for the motor, in this case it is the current encoder position
-        self.position = position
         
-    def controlla (self, position):
+    def outputValue (self, position):
         ''' This method runs the control algorithm and returns an error reading 
         to be used in the control system.
         '''
