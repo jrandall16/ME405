@@ -1,7 +1,9 @@
 """
-Created on Thu Jan  9 09:14:00 2020
+Created on Wed Feb 05 09:14:00 2020
 
 @author: Jacob Randall and Connor Bush
+
+Control the motor using proportional only control. Calculate the error signal and send that signal to the motor in the form of a pulse width modulation percentage signal. 
 """
 
 import utime

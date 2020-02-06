@@ -1,12 +1,10 @@
-# -*- coding: utf-8 -*-
 """
-Created on Thu Jan  9 09:14:00 2020
+Created on Wed Feb 05 09:14:00 2020
 
-@author: melab15
+@author: Jacob Randall and Connor Bush
+
+Initialize and read a motor encoder so the output is the current encoder position. 
 """
-
-'''@file encoder.py
-    by Randall & Bush'''
 import pyb
 
 class Encoder:

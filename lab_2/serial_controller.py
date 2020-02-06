@@ -1,10 +1,11 @@
 """
-Created on Thu Jan  9 09:14:00 2020
+Created on Wed Feb 05 09:14:00 2020
 
 @author: Jacob Randall and Connor Bush
+
+Open, read and write a generic serial port. Use in combinatino with pc_main to collect and plot the data passed through the serial port. 
 """
 
-'''@file main.py'''
 import time
 import serial
 

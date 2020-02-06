@@ -1,10 +1,10 @@
 """
-Created on Thu Jan  9 09:14:00 2020
+Created on Wed Feb 05 09:14:00 2020
 
 @author: Jacob Randall and Connor Bush
-"""
 
-'''@file main.py'''
+Run the motor controller on the Nucleo board. The motor will reach the position, Kp and steady state gain defined when initiallizing the Controller class. Emplot class MotorDriver to send the PWM signal to the motor and reach the desired position. 
+"""
 import encoder as enc
 import motor_driver
 import utime
