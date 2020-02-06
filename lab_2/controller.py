@@ -30,20 +30,20 @@ class Controller:
         ## position is the current value for the motor, in this case it is the current encoder position
         self.position = position
         
-    def controlla (self):
+    def controlla (self, position):
         ''' This method runs the control algorithm and returns an error reading 
         to be used in the control system.
         '''
 
         ## errror is the deviation from the desired value
-        error = self.setpoint - self.position
+        error = self.setpoint - position
 
         ## actuate is the signal appleid to the motor based on the error. The error is multiplied by Kp and used as the PWM signal sent to the motor
         actuation = self.Kp*error
 
         return actuation
         
-    def setPoint (self):
+    def setPoint (self, point):
         ''' This method assigns the setpoint a new value for changes in set point
         during operation.
         '''
@@ -52,7 +52,7 @@ class Controller:
         self.setpoint = point
 
 
-    def setGain (self):
+    def setGain (self, gain):
         ''' This method assigns the control gain(s) a new value for special cases
         during operation. i.e. during motor startup to overcome stiction.
         '''      
