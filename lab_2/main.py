@@ -1,8 +1,7 @@
-# -*- coding: utf-8 -*-
 """
 Created on Thu Jan  9 09:14:00 2020
 
-@author: melab15
+@author: Jacob Randall and Connor Bush
 """
 
 '''@file main.py'''
@@ -17,14 +16,14 @@ motor = motor_driver.MotorDriver()
 # call class Controller()
 ctr = controller.Controller(0.05, 16000, 30)
 
-# define the encoder that is used to read the motor position
+## define the encoder that is used to read the motor position
 encB = enc.Encoder('B')
 
 # initiate a try block with exception for emergency stop by keyboard interupt
 try:
     print ('firstline')
     while True:
-        #set the duty cycle to the output of controller function outputValue() using the current position of the encoder to determine the actuation signal
+        # set the duty cycle to the output of controller function outputValue() using the current position of the encoder to determine the actuation signal
         motor.set_duty_cycle(ctr.outputValue(encB.read()))
 
         # print the data into the terminal to be read by the pc
