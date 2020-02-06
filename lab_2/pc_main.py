@@ -14,8 +14,6 @@ try:
     while time.time() < t_end:
         x = serial_port.read()
         data.append(x.decode().rstrip())
-    # print(data[0])
-    # print(data)
     time.sleep(0.5)
     serial_port.write('\x03')
     serial_port.close()
