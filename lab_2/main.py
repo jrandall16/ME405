@@ -15,7 +15,7 @@ import controller
 motor = motor_driver.MotorDriver()
 
 # call class Controller()
-ctr = controller.Controller()
+ctr = controller.Controller(0.05, 16000, 30)
 
 # define the encoder that is used to read the motor position
 encB = enc.Encoder('B')
