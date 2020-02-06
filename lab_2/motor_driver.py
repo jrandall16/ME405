@@ -1,11 +1,11 @@
-# -*- coding: utf-8 -*-
 """
-Created on Thu Jan  9 09:14:00 2020
+Created on Wed Feb 05 09:14:00 2020
 
-@author: melab15
+@author: Jacob Randall and Connor Bush
+
+Send the motor a pulse width modulation (PWM) signal to define the duty cycle of the motor. 
 """
 
-'''@file motor_randall_bush.py'''
 import pyb
 
 
