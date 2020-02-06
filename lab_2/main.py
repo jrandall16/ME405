@@ -11,15 +11,16 @@ import motor_driver
 import utime
 import controller
 motor = motor_driver.MotorDriver()
-motor.set_duty_cycle(30)
+# motor.set_duty_cycle(30)
 encB = enc.Encoder('B')
 
-ctr = controller.Controller('0.001')
+ctr = controller.Controller(encB.read())
 # output_level = ctr.setOutput(encB.read())
 # motor.set_duty_cycle(output_level)
 try:
     print ('firstline')
     while True:
+        motor.set_duty_cycle(ctr.outputValue())
         print (str(encB.read()) + ',' + str(utime.ticks_ms()))
         utime.sleep_ms(10)
 
