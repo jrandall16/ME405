@@ -20,7 +20,7 @@ time_ms = []
 position = []
 
 ## define an amount of time to run the motor and collect step response data ( set to 6 for our test case )
-t_end = time.time() + 10
+t_end = time.time() + 4
 
 # initiate a try block to open and read data from the serial port
 try:
