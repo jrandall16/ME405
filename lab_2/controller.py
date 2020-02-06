@@ -56,9 +56,9 @@ class Controller:
         ## Kp is reset to the value of gain while running the motor controller
         self.Kp = gain
 
-    def readData(self, position):
-        ''' This method reads the data from the serial port and organizes it into columns of time and motor position.
-        '''
+    # def readData(self, position):
+    #     ''' This method reads the data from the serial port and organizes it into columns of time and motor position.
+    #     '''
 
-        self.data = (utime.ticks_ms(), ',', position, '\n')
+    #     self.data = (utime.ticks_ms(), ',', position, '\n')
 
