@@ -7,7 +7,7 @@ data = []
 newdata = []
 time_ms = []
 position = []
-t_end = time.time() + 6
+t_end = time.time() + 4
 try:
     serial_port.write('\x04')
     time.sleep(1)
