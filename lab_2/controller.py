@@ -19,7 +19,7 @@ class Controller:
         '''
         
         ## Kp is the proportional gain for the controller
-        self.Kp = 0.001
+        self.Kp = 0.005
 
         ## setpoint is the desired value for the motor, in this case it is the desired encoder position
         self.setpoint = 16000
