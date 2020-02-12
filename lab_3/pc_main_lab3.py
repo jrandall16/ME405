@@ -16,11 +16,15 @@ serial_port = serial_controller.Serial('/dev/cu.usbmodem205537A735412')
 # initialize blank arrays to be filled with data
 data = []
 newdata = []
-time_ms = []
-position = []
+motor1_data = []
+motor2_data = []
+time_ms1 = []
+position1 = []
+time_ms2 = []
+position2 = []
 
 ## define an amount of time to run the motor and collect step response data ( set to 6 for our test case )
-t_end = time.time() + 2
+t_end = time.time() + 3
 
 # initiate a try block to open and read data from the serial port
 try:
@@ -34,8 +38,9 @@ try:
     while time.time() < t_end:
 
         x = serial_port.read()
-
-        print(x.decode())
+        # print(x.decode())
+        # edit the data to remove unwanted return characters (\r and \n)
+        data.append(x.decode().rstrip())
 
     # give the board 0.5 seconds to finish reading any data    
     time.sleep(0.5)
@@ -45,6 +50,35 @@ try:
 
     # close the serial_port
     serial_port.close()
+
+# for each data read, split the values into a column of position and time
+    for point in data:
+
+        newdata.append(point.split(',',3))
+    
+    for point in newdata:
+        if point[0] == str(1):
+            motor1_data.append([int(point[1]), int(point[2])])
+        elif point[0] == str(2):
+            motor2_data.append([int(point[1]), int(point[2])])
+        else:
+            pass
+    print (motor1_data)
+    print (motor2_data)
+
+    ticks_corrected1 = int(motor1_data[0][1])
+    ticks_corrected2 = int(motor2_data[0][1])
+    for point in motor1_data:
+        position1.append(point[0])
+        time_ms1.append(point[1] - ticks_corrected1)
+
+    for point in motor2_data:
+        position2.append(point[0])
+        time_ms2.append(point[1] - ticks_corrected2)
+
+    pyplot.plot(time_ms1, position1, 'g-', time_ms2, position2, 'b--')
+    pyplot.title('Position vs Time')
+    pyplot.show ()
 
 # close the serial port when keyboard interupt is thrown
 except KeyboardInterrupt:

@@ -19,6 +19,7 @@ import busy_task
 import controller
 import encoder as enc
 import motor_driver
+import utime
 
 # Allocate memory so that exceptions raised in interrupt service routines can
 # generate useful diagnostic printouts
@@ -35,15 +36,10 @@ def motor_1 ():
 
     ## define the encoder that is used to read the motor position
     encB = enc.Encoder('B')
-
     while True:
         motor.set_duty_cycle(ctr.outputValue(encB.read()))
-
-        ## need to figure out print_task
-        #shares.print_task.put(encB.read())
-
-        print_task.put_bytes (bytes(encB.read()))
-
+        data = '1, ' + str(encB.read()) + ', ' + str(utime.ticks_ms()) + '\r\n'
+        print_task.put (data)
         yield (0)
 
 def motor_2 ():
@@ -56,8 +52,8 @@ def motor_2 ():
     encC = enc.Encoder('C')
     while True:
         motor_2.set_duty_cycle(ctr_2.outputValue(encC.read()))
-        
-        print_task.put_bytes (bytes(encC.read()))
+        data = '2, ' + str(encC.read()) + ', ' + str(utime.ticks_ms()) + '\r\n'
+        print_task.put (data)
         yield (0)
 # =============================================================================
 
@@ -81,7 +77,6 @@ if __name__ == "__main__":
 
         task2 = cotask.Task (motor_2, name = 'Motor 2', priority = 1, 
                             period = 100, profile = True, trace = False)
-
         cotask.task_list.append (task1)
         cotask.task_list.append (task2)
 
@@ -105,12 +100,10 @@ if __name__ == "__main__":
 
         # Run the scheduler with the chosen scheduling algorithm. Quit if any 
         # character is sent through the serial port
-        vcp = pyb.USB_VCP ()
-        while not vcp.any ():
+        while True:
             cotask.task_list.pri_sched ()
 
         # Empty the comm port buffer of the character(s) just pressed
-        vcp.read ()
 
         # Print a table of task data and a table of shared information data
         print ('\n' + str (cotask.task_list) + '\n')
