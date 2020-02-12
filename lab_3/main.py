@@ -35,11 +35,17 @@ def motor_1 ():
 
     ## define the encoder that is used to read the motor position
     encB = enc.Encoder('B')
+
+    BPos = bytearray ('<.>')
     while True:
         motor.set_duty_cycle(ctr.outputValue(encB.read()))
 
         ## need to figure out print_task
-        # print_task.put (encB.read())
+        #shares.print_task.put(encB.read())
+
+        BPos[1] = encB.read()
+        print_task.put_bytes (BPos)
+
         yield (0)
 
 def motor_2 ():
@@ -52,7 +58,8 @@ def motor_2 ():
     encC = enc.Encoder('C')
     while True:
         motor_2.set_duty_cycle(ctr_2.outputValue(encC.read()))
-        # print_task.put (encC.read())
+        
+        shares.print_task.put (encC.read())
         yield (0)
 # =============================================================================
 
@@ -79,6 +86,9 @@ if __name__ == "__main__":
 
         cotask.task_list.append (task1)
         cotask.task_list.append (task2)
+        
+"""         while True: 
+            cotask.task_list.pri_sched () """ '''not sure if needed here if also below in the next while loop'''
 
         # A task which prints characters from a queue has automatically been
         # created in print_task.py; it is accessed by print_task.put_bytes()
@@ -107,7 +117,7 @@ if __name__ == "__main__":
         # Empty the comm port buffer of the character(s) just pressed
         vcp.read ()
 
-        # Print a table of task data and a table of shared information data
+        # # Print a table of task data and a table of shared information data
         # print ('\n' + str (cotask.task_list) + '\n')
         # print (task_share.show_all ())
         # print (task1.get_trace ())
