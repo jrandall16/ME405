@@ -25,91 +25,90 @@ import utime
 # generate useful diagnostic printouts
 alloc_emergency_exception_buf (100)
 
-# Declare some constants to make state machine code a little more readable.
-# This is optional; some programmers prefer to use numbers to identify tasks
-
+## Define a method to run motor 1
 def motor_1 ():
-    motor = motor_driver.MotorDriver('A10', 20000)
+    ''' Define a task to run both motors in order. Configure the motor using the motor_driver.py file. Store the data collected from each in a
+    queue and extract this data for plotting later'''
+
+    motor = motor_driver.MotorDriver('A10', 200)
 
     # call class Controller()
     ctr = controller.Controller(0.01, 16000, 30)
-
+    
     ## define the encoder that is used to read the motor position
     encB = enc.Encoder('B')
+    
+    # run the proportional contorller on the motor and feed the data into the shares and queues using put()
     while True:
+
+        # set the motor duty cycle using class Controller()
         motor.set_duty_cycle(ctr.outputValue(encB.read()))
-        data = '1, ' + str(encB.read()) + ', ' + str(utime.ticks_ms()) + '\r\n'
-        print_task.put (data)
+
+        # if the queue is not full, fill values for the queue and the share
+        if q0.full() == False:
+            q0.put (encB.read())
+            q0.put (utime.ticks_ms())
+
+        s0p.put(encB.read())
+        s0t.put (utime.ticks_ms())
         yield (0)
 
+## Define a method to run motor 1
 def motor_2 ():
-    motor_2 = motor_driver.MotorDriver('C1', 20000)
+    ''' Define a task to run the first motor. Configure the motor using the motor_driver.py file.'''
+    motor_2 = motor_driver.MotorDriver('C1', 200)
 
     # call class Controller()
     ctr_2 = controller.Controller(0.01, 16000, 30)
 
     ## define the encoder that is used to read the motor position
     encC = enc.Encoder('C')
+
     while True:
         motor_2.set_duty_cycle(ctr_2.outputValue(encC.read()))
-        data = '2, ' + str(encC.read()) + ', ' + str(utime.ticks_ms()) + '\r\n'
-        print_task.put (data)
         yield (0)
-# =============================================================================
-
+# # =============================================================================
+# run main continuously
 if __name__ == "__main__":
     try:
         print ('\033[2JTesting scheduler in cotask.py\n')
 
-        # Create a share and some queues to test diagnostic printouts
-        share0 = task_share.Share ('i', thread_protect = False, name = "Share_0")
-        q0 = task_share.Queue ('B', 6, thread_protect = False, overwrite = False,
-                            name = "Queue_0")
-        q1 = task_share.Queue ('B', 8, thread_protect = False, overwrite = False,
-                            name = "Queue_1")
+        # Establish a set of shares and queues for both to test if either is working
+        # Set up shares for motor_1 and one queue for motor_1
 
-        # Create the tasks. If trace is enabled for any task, memory will be
-        # allocated for state transition tracing, and the application will run out
-        # of memory after a while and quit. Therefore, use tracing only for 
-        # debugging and set trace to False when it's not needed
-        task1 = cotask.Task (motor_1, name = 'Motor 1', priority = 1, 
-                            period = 100, profile = True, trace = False)
+        # was expecting the queue to hold the time and the position but it looks like it has a maximum capacity of 6 digits 
+        s0p = task_share.Share ('i', thread_protect = False, name = "Motor1_Position")
+        s0t = task_share.Share ('i', thread_protect = False, name = "Motor1_Time")
 
-        task2 = cotask.Task (motor_2, name = 'Motor 2', priority = 1, 
-                            period = 100, profile = True, trace = False)
-        cotask.task_list.append (task1)
-        cotask.task_list.append (task2)
+        # the queue holds the right amount of data, just need a way to clean it up and read it
+        q0 = task_share.Queue ('i', 1000, thread_protect = False, overwrite = False, name = "Motor1_Queue")
+
+        # Intitialize the tasks for each motor controller using Task() 
+        # assigned different priorities to see how it works, changing it back to the same value shouldnt affect it. 
+        m1 = cotask.Task (motor_1, name = 'Motor 1', priority = 2, period = 100, profile = True, trace = False)
+        m2 = cotask.Task (motor_2, name = 'Motor 2', priority = 1, period = 100, profile = True, trace = False)
+
+
+        # add each task to the task list                     
+        cotask.task_list.append (m1)
+        cotask.task_list.append (m2)
+
+        while True:
+            cotask.task_list.pri_sched ()
 
         # A task which prints characters from a queue has automatically been
         # created in print_task.py; it is accessed by print_task.put_bytes()
 
 
-
-        
-        # Create a bunch of silly time-wasting busy tasks to test how well the
-        # scheduler works when it has a lot to do
-        # for tnum in range (10):
-        #     newb = busy_task.BusyTask ()
-        #     bname = 'Busy_' + str (newb.ser_num)
-        #     cotask.task_list.append (cotask.Task (newb.run_fun, name = bname, 
-        #         priority = 0, period = 400 + 30 * tnum, profile = True))
-
         # Run the memory garbage collector to ensure memory is as defragmented as
         # possible before the real-time scheduler is started
         gc.collect ()
 
-        # Run the scheduler with the chosen scheduling algorithm. Quit if any 
-        # character is sent through the serial port
-        while True:
-            cotask.task_list.pri_sched ()
-
-        # Empty the comm port buffer of the character(s) just pressed
-
-        # Print a table of task data and a table of shared information data
-        print ('\n' + str (cotask.task_list) + '\n')
-        print (task_share.show_all ())
-        print (task1.get_trace ())
-        print ('\r\n')
+        # # Print a table of task data and a table of shared information data
+        # print ('\n' + str (cotask.task_list) + '\n')
+        # print (task_share.show_all ())
+        # print (task1.get_trace ())
+        # print ('\r\n')
 
     except KeyboardInterrupt:
         motor = motor_driver.MotorDriver('A10', 20000)
