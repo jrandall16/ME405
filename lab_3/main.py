@@ -30,7 +30,7 @@ def motor_1 ():
     ''' Define a task to run both motors in order. Configure the motor using the motor_driver.py file. Store the data collected from each in a
     queue and extract this data for plotting later'''
 
-    motor = motor_driver.MotorDriver('A10', 200)
+    motor = motor_driver.MotorDriver('A10', 20000)
 
     # call class Controller()
     ctr = controller.Controller(0.01, 16000, 30)
@@ -39,33 +39,41 @@ def motor_1 ():
     encB = enc.Encoder('B')
     
     # run the proportional contorller on the motor and feed the data into the shares and queues using put()
+    x = True
     while True:
 
         # set the motor duty cycle using class Controller()
         motor.set_duty_cycle(ctr.outputValue(encB.read()))
-
+        data = '1, ' + str(encB.read()) + ', ' + str(utime.ticks_ms()) + '\r\n'
+        if x == True:
+            print_task.put (data)
+        x = not x
         # if the queue is not full, fill values for the queue and the share
-        if q0.full() == False:
-            q0.put (encB.read())
-            q0.put (utime.ticks_ms())
+        # if q0.full() == False:
+        #     q0.put (encB.read())
+        #     q0.put (utime.ticks_ms())
 
-        s0p.put(encB.read())
-        s0t.put (utime.ticks_ms())
+        # s0p.put(encB.read())
+        # s0t.put (utime.ticks_ms())
         yield (0)
 
-## Define a method to run motor 1
+## Define a method to run motor 2
 def motor_2 ():
     ''' Define a task to run the first motor. Configure the motor using the motor_driver.py file.'''
-    motor_2 = motor_driver.MotorDriver('C1', 200)
+    motor_2 = motor_driver.MotorDriver('C1', 20000)
 
     # call class Controller()
     ctr_2 = controller.Controller(0.01, 16000, 30)
 
     ## define the encoder that is used to read the motor position
     encC = enc.Encoder('C')
-
+    x = True
     while True:
         motor_2.set_duty_cycle(ctr_2.outputValue(encC.read()))
+        data = '2, ' + str(encC.read()) + ', ' + str(utime.ticks_ms()) + '\r\n'
+        if x == True:
+            print_task.put (data)
+        x = not x
         yield (0)
 # # =============================================================================
 # run main continuously
@@ -85,8 +93,8 @@ if __name__ == "__main__":
 
         # Intitialize the tasks for each motor controller using Task() 
         # assigned different priorities to see how it works, changing it back to the same value shouldnt affect it. 
-        m1 = cotask.Task (motor_1, name = 'Motor 1', priority = 2, period = 100, profile = True, trace = False)
-        m2 = cotask.Task (motor_2, name = 'Motor 2', priority = 1, period = 100, profile = True, trace = False)
+        m1 = cotask.Task (motor_1, name = 'Motor 1', priority = 1, period = 40, profile = True, trace = False)
+        m2 = cotask.Task (motor_2, name = 'Motor 2', priority = 1, period = 40, profile = True, trace = False)
 
 
         # add each task to the task list                     
