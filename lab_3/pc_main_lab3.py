@@ -3,7 +3,7 @@ Created on Wed Feb 05 09:14:00 2020
 
 @author: Jacob Randall and Connor Bush
 
-Collect position and time data from the motor controller through a serial port. Clean up the data and plot position versus time to find the steady state motor gain and time constant. 
+Print position and time data from the motor controller through a serial port. Demonstrate multitasking using cotask. 
 """
 
 from matplotlib import pyplot
