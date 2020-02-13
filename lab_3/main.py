@@ -1,11 +1,9 @@
-""" @file main.py
-    This file contains a demonstration program that runs some tasks, an
-    inter-task shared variable, and some queues. 
+"""
+Created on Wed Feb 05 09:14:00 2020
 
-    @author JR Ridgely
+@author: Jacob Randall and Connor Bush
 
-    @copyright (c) 2015-2020 by JR Ridgely and released under the Lesser GNU
-        Public License, Version 3. 
+Collect position and time data from the motor controller through a serial port. Clean up the data and plot position versus time to find the steady state motor gain and time constant. 
 """
 
 import pyb
@@ -92,8 +90,9 @@ if __name__ == "__main__":
     try:
         print ('\033[2JTesting scheduler in cotask.py\n')
 
-        # Intitialize the tasks for each motor controller using Task()
+        ## intitialize motor task 1 using Task()
         m1 = cotask.Task (motor_1, name = 'Motor 1', priority = 1, period = 40, profile = True, trace = False)
+        ## intitialize motor task 2 using Task()
         m2 = cotask.Task (motor_2, name = 'Motor 2', priority = 1, period = 40, profile = True, trace = False)
 
         # add each task to the task list                     
