@@ -93,8 +93,8 @@ if __name__ == "__main__":
 
         # Intitialize the tasks for each motor controller using Task() 
         # assigned different priorities to see how it works, changing it back to the same value shouldnt affect it. 
-        m1 = cotask.Task (motor_1, name = 'Motor 1', priority = 1, period = 40, profile = True, trace = False)
-        m2 = cotask.Task (motor_2, name = 'Motor 2', priority = 1, period = 40, profile = True, trace = False)
+        m1 = cotask.Task (motor_1, name = 'Motor 1', priority = 1, period = 200, profile = True, trace = False)
+        m2 = cotask.Task (motor_2, name = 'Motor 2', priority = 1, period = 200, profile = True, trace = False)
 
 
         # add each task to the task list                     
