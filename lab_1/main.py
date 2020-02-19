@@ -17,6 +17,6 @@ class EncoderReading:
             self.PinB6 = pyb.Pin (pyb.Pin.board.B6, pyb.Pin.IN)
             self.PinB7 = pyb.Pin (pyb.Pin.board.B7, pyb.Pin.IN)
             timer = pyb.Timer(4, prescaler=0, period= 0xFFFF)
-            self.channe= timer.channel(1, pyb.Timer.ENC_AB, pin = PinB6)
+            self.channel = timer.channel(1, pyb.Timer.ENC_AB, pin = PinB6)
             
         
