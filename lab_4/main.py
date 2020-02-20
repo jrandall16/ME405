@@ -35,7 +35,7 @@ tim = pyb.Timer (1, prescaler=79, period=0xFFFF)
 # set up the timer object to detect edges 
 ch1 = tim.channel(1, pyb.Timer.IC, polarity = pyb.Timer.BOTH, pin = pinA8, callback = callback_fun)
 
-
+# I put the callback into the timer.channel object, should not make a difference. 
 #callback = ch1.callback(callback_fun)
 
 if __name__ == "__main__":
@@ -48,7 +48,7 @@ if __name__ == "__main__":
                 data.append(q0.get())
             s0.put(0)    
 
-            #find the difference between edges 
+            # find the difference between edges 
             subdata = []
             for i in data:
                 if data.index(i) > 1 and data.index(i) < 67:
@@ -58,6 +58,7 @@ if __name__ == "__main__":
 
             # equate the differences to a 4 byte binary number    
             isrdata = []
+
             # find a value that splits all values in newdata. The low values represent 0's and the high values represent 1's
             midvalue = 0
             for i in subdata:
@@ -66,14 +67,24 @@ if __name__ == "__main__":
                 if i > midvalue:
                     isrdata.append(1)
 
-            # the data from isr data is written in reversed binary, reverse the order of isrdata to generate accurate binary data
-            bindata = []
-
+            # the data in isrdata is written in reverse binary with the least signifigcant bit in the most signifigcant bit spot
             # shift each value read from isrdata to the left to generate the appropriate binary data
-            # << shifts the value to the left by the value of the index
-            # charlie mentioned this was one way shift the data around, not sure if it's the best way. its raising the value to the power of the index instead of shifting it
-            for i in range(len(isrdata)):
-                bindata.append(isrdata[i] << i)
+
+            # initialize j as the indexes of isrdata
+            j = len(isrdata)-1
+
+            # initialize an array with the appropriate number of values to be filled in
+            bindata = [None]*len(isrdata)
+
+            # fill in each value for j greater than or equal to zero
+            while j >= 0:
+                # place each value in isrdata at the correct point in the array
+                for i in isrdata:
+                    bindata[j] = i
+                    # decrement the index to fill in the array backwards.
+                    j = j-1
+            
+            # need to format the binary data into a nice readable format
 
         pass
 
