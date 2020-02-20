@@ -15,11 +15,12 @@ s0 = task_share.Share ('I', thread_protect = False, name = "Share_0")
 # define a queue to be used as a buffer for interrupt timestamp data
 q0 = task_share.Queue ('I', 68, thread_protect = False, overwrite = False, name = "Queue_0")
 
+
 ## using a defined timer, collect the timestamp data from the IR signal.
 def callback_fun (timer):
     # put the timestamp data into the queue when the share value is 0
     while s0.get() == 0:
-        q0.put (timer.counter(), in_ISR=True)
+        q0.put (timer.counter(), in_ISR=True )
 
         # if the queue is full, set the share value to 1
         if q0.full():
@@ -29,13 +30,13 @@ def callback_fun (timer):
 pinA8 = pyb.Pin (pyb.Pin.board.PA8, pyb.Pin.IN)
 
 # set up the correct timer for pinA8. Assign the timer a 16-bit period and a prescaler of 79 to collect accurate timestamps
-tim = pyb.Timer (1, prescaler=79, period=0xFFFF, callback = callback_fun)
+tim = pyb.Timer (1, prescaler=79, period=0xFFFF)
 
 # set up the timer object to detect edges 
-ch1 = tim.channel(1, pyb.Timer.IC, polarity = pyb.Timer.BOTH, pin = pinA8)
+ch1 = tim.channel(1, pyb.Timer.IC, polarity = pyb.Timer.BOTH, pin = pinA8, callback = callback_fun)
 
 
-#tim.callback(callback_fun)
+#callback = ch1.callback(callback_fun)
 
 if __name__ == "__main__":
 
