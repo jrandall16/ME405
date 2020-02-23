@@ -56,7 +56,7 @@ class Infared:
         # A queue to be used as a buffer for interrupt timestamp data. Buffer
         # size is greater than full pulse count to account for repeat codes
         # that disrupt a full pulse set.
-        self.ir_data = task_share.Queue ('I', 136, thread_protect = False,
+        self.ir_data = task_share.Queue ('I', 68, thread_protect = False,
                                         overwrite = False, name = "ir_data")
 
     ## using the timerObject from the interrupt,collect the timestamp data
@@ -66,9 +66,9 @@ class Infared:
         everytime an interrupt is detected and stores the time in microseconds
         to the queue.
         '''
-        if self.ir_data.num_in() == 68:
-            # raise the full_set_of_pulses flag when the queue count gets to 68
-            self.full_set_of_pulses.put(1, in_ISR=True)
+        # if self.ir_data.num_in() == 68:
+        #     # raise the full_set_of_pulses flag when the queue count gets to 68
+        #     self.full_set_of_pulses.put(1, in_ISR=True)
         
         # continuously add timestamp data to the queue when an interrupt
         # is detected
@@ -78,6 +78,7 @@ class Infared:
     def interpretIRdata (self):
         '''This method interprets a true full set of IR pulses (68 pulses)
         Note: the subdata list must be defined 
+        Raises Exception if 2s complement of bytes are not accurate
         '''
 
         def assignBits (rangeLow, rangeHigh):
@@ -133,26 +134,55 @@ class Infared:
         commandByte, commandByteD = assignBytes(commandBits, True)
         ncommandByte = assignBytes(ncommandBits)
 
-        print('--------------- New Packet ---------------\n'
-            + '  RAW:  ' + rawBytes + '\n'
-            + ' ADDR:  ' + addressByte + '\n'
-            + 'nADDR:  ' + naddressByte + '\n'
-            + '  CMD:  ' + commandByte + '\n'
-            + ' nCMD:  ' + ncommandByte + '\n'
-            + '\n'
-            + 'Address (Decimal):  ' + str(addressByteD) + '\n'
-            + 'Command (Decimal):  ' + str(commandByteD) + '\n'
-            + '------------------------------------------')
-        
-        # empty data and subdata lists after print complete
-        self.data = []
-        self.subdata = []
+        if int(addressByte) ^  int(naddressByte) == 255:
+
+            if int(commandByte) ^ int(ncommandByte) == 255:
+
+                print('--------------- New Packet ---------------\n'
+                    + '  RAW:  ' + rawBytes + '\n'
+                    + ' ADDR:  ' + addressByte + '\n'
+                    + 'nADDR:  ' + naddressByte + '\n'
+                    + '  CMD:  ' + commandByte + '\n'
+                    + ' nCMD:  ' + ncommandByte + '\n'
+                    + '\n'
+                    + 'Address (Decimal):  ' + str(addressByteD) + '\n'
+                    + 'Command (Decimal):  ' + str(commandByteD) + '\n'
+                    + '------------------------------------------')
+                    # empty data and subdata lists after print complete
+
+                self.data = []
+                self.subdata = []
+            else:
+                raise Exception('2s complement of commandByte is not accurate')
+        else:
+            raise Exception('2s complement of addressByte is not accurate')
+
 
     def readInfaredSensorTask (self):
         ''' This method reads the data stored in the queue and runs the
         interpretIRdata function when a true full set of pulses is found.
         '''
 
+        def removeBadData ():
+            x = False
+            for i in range (0,len(self.subdata) - 1,2):
+                total = self.subdata[i] + self.subdata[i+1]
+                if total > 13000 and total < 15000:
+                    print('heres the leading pulse: ' + str(total))
+                    x = i
+            if x:
+                del self.subdata[0:x]
+                del self.data[0:x]
+
+                while len(self.data) < 68:
+                    self.data.append(self.ir_data.get())
+
+                interpretRawIRdata(self.data)
+                return True
+            else:
+                self.data = []
+                self.subdata = []
+                return False
 
         def interpretRawIRdata (rawData):
             ''' This nested function interprets the raw data and determines
@@ -179,51 +209,53 @@ class Infared:
         self.full_set_of_pulses.put(0)
 
         while True:
-            if self.full_set_of_pulses.get() == 1:
-                num_pulses = 0
-                while not self.ir_data.empty():
-                    self.data.append(self.ir_data.get())
-                    num_pulses += 1
-                    if num_pulses == 68:
-                        break
-                self.full_set_of_pulses.put(0)
+            while len(self.data) < 68:
+                self.data.append(self.ir_data.get())
 
-                interpretRawIRdata(self.data)
-                
-                leading_pulse = self.subdata[0] + self.subdata[1]
+            interpretRawIRdata(self.data)
+            
+            leading_pulse = self.subdata[0] + self.subdata[1]
 
-                #--------------------------------------------------------------#
-                # delete after testing
-                # print (leading_pulse)
-                #--------------------------------------------------------------#
 
-                if leading_pulse > 13000 and leading_pulse < 15000:
+            if leading_pulse > 13000 and leading_pulse < 15000:
+                try:
                     self.interpretIRdata()
-                else:
-                    x = False
-                    for i in range (0,len(self.subdata) - 1,2):
-                        total = self.subdata[i] + self.subdata[i+1]
-                        if total > 13000 and total < 15000:
-                            print('heres the leading pulse: ' + str(total))
-                            x = i
-                    if x:
-                        del self.subdata[0:x]
-                        del self.data[0:x]
+                    self.data = []
+                    self.subdata = []
+                except Exception as e:
+                    print('Exception 1: ' + str(e))
+                    pass
 
-                        print(len(self.data))
-                        while not self.ir_data.empty():
-                            self.data.append(self.ir_data.get())
-                            if len(self.data) == 68:
-                                print ('break')
-                                break
-                            else:
-                                pass
-                        if len(self.data) == 68:
-                            interpretRawIRdata(self.data)
-                            self.interpretIRdata()
-                            print(self.ir_data.num_in())                        
-                    else:
+
+            else:
+                # x = False
+                # for i in range (0,len(self.subdata) - 1,2):
+                #     total = self.subdata[i] + self.subdata[i+1]
+                #     if total > 13000 and total < 15000:
+                #         print('heres the leading pulse: ' + str(total))
+                #         x = i
+                # if x:
+                #     del self.subdata[0:x]
+                #     del self.data[0:x]
+
+                #     while len(self.data) < 68:
+                #         self.data.append(self.ir_data.get())
+
+                #     interpretRawIRdata(self.data)
+                if removeBadData() == True:
+                    try:
+                        self.interpretIRdata()
                         self.data = []
                         self.subdata = []
-            else:
-                pass
+                    except Exception as e:
+                        print('Exception 2: ' + str(e))
+                        del self.data [0:1]
+                        del self.subdata [0:1]
+                        
+                        if removeBadData() == True:
+                            self.interpretIRdata()
+                            self.data = []
+                            self.subdata = []
+                        self.data = []
+                        self.subdata = []
+                        pass
