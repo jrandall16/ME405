@@ -120,3 +120,86 @@ class MotorDriver:
         else:
             self.ch.pulse_width_perself.directionPin.low()
             self.ch.pulse_width_percent (level)
+
+class Encoder:
+    ''' This class implements reading and resetting of the motor encoder '''
+    def __init__ (self, encoderpinA, channelA, encoderpinB, channelB, timer):
+        ''' Initializes timers for the encoder.
+        @param pingroup Input of a character 'B' or 'C' representing 
+        pingroups B6/B7 or C6/C7 on the cpu respectively '''
+        
+        print ('Setting up the encoder')
+            ## If using the pingroup B, need to utilize timer 4
+            ## If using pingroup B, implied that pin B6 uses channel 1 and pin B7 uses channel 2
+            encA = pyb.Pin (encoderpinA, mode = pyb.Pin.IN)
+            encB = pyb.Pin (encoderpinB, mode = pyb.Pin.IN)
+
+        else:
+            ## throw exception
+            return
+
+        print ('Done Setting Up Encoder')
+
+        ## TimerA object specific to which pingroup the Encoder class is passed
+        # Initialized with prescale set to zero, period set to 65535 (Hex FFFF)
+        self.tim = pyb.Timer (timerA, prescaler=0, period=0xFFFF)
+
+        ## Channel 1 object specific to the pingroup selected
+        self.ch_1 = self.tim.channel(channelA, pyb.Timer.ENC_A, pin = encoderpinA)
+
+        ## Channel 2 object specific to the pingroup selected
+        self.ch_2 = self.tim.channel(channelB, pyb.Timer.ENC_B, pin = encoderpinB)
+        
+        # initialize last value to 0 to start encoder at position 0
+        ## Last known count of the encoder
+        self.last_value = 0
+
+        # set current position to zero as well to ensure encoder is zeroed at start
+        ## The current corrected position of the encoder
+        self.current_value = 0
+
+        # initialize last value to 0 to start timer at 0
+        ## The last time read by the timer
+        self.last_time = 0'
+
+        # set current time to zero as well to ensure timer is zeroed at start
+        ## The current time read by the timer
+        self.current_time = 0
+        
+    def read (self):
+        ''' This method reads the current position of the motor
+        and returns it as a unsigned integer.
+        @return Current position of motor 
+        '''
+        # read the encoder and save that value as the current value
+        current_value = self.tim.counter()
+        current_time = utime.tick_ms()
+        
+
+        # delta is a signed value and is the difference between the current reading
+        # the previous reading. If The value is positive, the motor was turning clockwise, if
+        # negative, it was turning counterclockwise.
+        delta = (current_value - self.last_value)
+
+        if delta <= -32767:
+            delta = current_value + (65535 - self.last_value)
+
+        elif delta >= 32767:
+            delta = -(self.last_value + (65535 - current_value))
+
+        else:
+            pass
+        
+        # using the adjusted position data, find the speed of in ticks per millisecond
+        tickspertime = (current_value - self.last_value)/(current_time - self.last_time)
+
+        # set the current value of time and position to the last value, so the next time through a new change is computed
+        self.last_value = current_value
+        self.last_time = current_time
+        self.currentSpeed += tickspertime
+        return self.currentSpeed
+
+    def zero (self):
+        ''' This method resets the encoders speed to zero. 
+        '''    
+        self.currentSpeed = 0
