@@ -18,14 +18,13 @@ q0 = task_share.Queue ('I', 68, thread_protect = False, overwrite = False, name 
 
 ## using a defined timer, collect the timestamp data from the IR signal.
 def callback_fun (timer):
-
-    # if the queue is full, set the share value to 0 so the queue is not overwritten
+    # put the timestamp data into the queue when the share value is 0
     if q0.full():
         s0.put(1)
-    # if the share value is 0, print the timestamp in the queue
-    if s0.get() == 0:    
+    
+    if s0.get() == 0:
         q0.put (timer.channel(1).capture(), in_ISR=True )
-
+        # if the queue is full, set the share value to 1
 
 
 # assign pinA8 as an input pin to read the incoming data from the IR sensor
@@ -37,17 +36,14 @@ tim = pyb.Timer (1, prescaler=79, period=0xFFFF)
 # set up the timer object to detect edges 
 ch1 = tim.channel(1, pyb.Timer.IC, polarity = pyb.Timer.BOTH, pin = pinA8, callback = callback_fun)
 
+# I put the callback into the timer.channel object, should not make a difference. 
+#callback = ch1.callback(callback_fun)
 
 if __name__ == "__main__":
 
-    # initialize an array to store the data in the queue
     data = []
-    
-    # initialize the share value to 0 so the queue is filled
     s0.put(0)
-
     while True:
-        # if the queue is full, print the data in the queue
         if s0.get() == 1:
             while not q0.empty():
                 data.append(q0.get())
@@ -55,7 +51,7 @@ if __name__ == "__main__":
 
 
 
-            # find the difference between edges in each section of the raw data
+            # find the difference between edges 
             subdata = []
             for i in range (len(data) - 1):
 
@@ -68,17 +64,13 @@ if __name__ == "__main__":
             if subdata[1] < 3000:
                 print ('repeat code')
 
-            # replace the data with the respective binary values
             raw = []
             for i in range (2,66,2):
                 total = subdata[i] + subdata[i+1]
-                # if the addition of two interrupt times is less than 1300, append a 0
                 if total < 1300:
                     raw.append(0)
-                # if the addition of two interrupt times is greater than 2000, append a 1
                 elif total > 2000:
                     raw.append(1)
-            # repeat for each section of the data and append 1's and 0's to the appropriate array        
             address = []
             for i in range (2,18,2):
                 total = subdata[i] + subdata[i+1]
@@ -109,14 +101,13 @@ if __name__ == "__main__":
                 elif total > 2000:
                     ncommand.append(1)
 
-            # intitialize a value to be updated
+
             raw_bytes = 0
             address_byte = 0
             naddress_byte = 0
             command_byte = 0
             ncommand_byte = 0
 
-            # print each array backwards to create the correct 8-bit number
             for n in range (len(raw)):
                 raw_bytes |= raw[n] << n
             for n in range (len(address)):
@@ -128,14 +119,55 @@ if __name__ == "__main__":
             for n in range (len(ncommand)):
                 ncommand_byte |= ncommand[n] << n
 
-            print('{:#010b}'.format(raw_bytes))
-            print('{:#010b}'.format(address_byte))
-            print('{:#010b}'.format(naddress_byte))
-            print('{:#010b}'.format(command_byte))
-            print('{:#010b}'.format(ncommand_byte))
+            raw_bytes = '{:#010b}'.format(raw_bytes)
+            address_byte_decimal = address_byte
+            address_byte = '{:#010b}'.format(address_byte)
+            naddress_byte = '{:#010b}'.format(naddress_byte)
+            command_byte_decimal = command_byte
+            command_byte = '{:#010b}'.format(command_byte)
+            ncommand_byte = '{:#010b}'.format(ncommand_byte)
+
+            print('--------------- New Packet ---------------\n'
+                + '  RAW:  ' + raw_bytes + '\n'
+                + ' ADDR:  ' + address_byte + '\n'
+                + 'nADDR:  ' + naddress_byte + '\n'
+                + '  CMD:  ' + command_byte + '\n'
+                + ' nCMD:  ' + ncommand_byte + '\n'
+                + '\n'
+                + 'Address (Decimal):  ' + str(address_byte_decimal) + '\n'
+                + 'Command (Decimal):  ' + str(command_byte_decimal) + '\n'
+                + '------------------------------------------')
+
+                # if data.index(i) > 1 and data.index(i) < 67:
+                # # if the index is a factor of two, find the difference of the two values and put it in a list
+                #     if data.index(i)%2 != 0:
+                #       subdata.append(int(data[data.index(i)] - data[data.index(i)-1]))
+        #     # equate the differences to a 4 byte binary number    
+        #     isrdata = []
+
+        #     # find a value that splits all values in newdata. The low values represent 0's and the high values represent 1's
+        #     midvalue = 0
+        #     for i in subdata:
+        #         if i < midvalue:
+        #             isrdata.append(0)
+        #         if i > midvalue:
+        #             isrdata.append(1)
+
+        #     # the data in isrdata is written in reverse binary with the least signifigcant bit in the most signifigcant bit spot
+        #     # shift each value read from isrdata to the left to generate the appropriate binary data
+
+        #     # initialize j as the indexes of isrdata
+        #     j = len(isrdata)-1
+
+        #     # initialize an array with the appropriate number of values to be filled in
+        #     bindata = [None]*len(isrdata)
+
+        #     # fill in each value for j greater than or equal to zero
+        #     while j >= 0:
+        #         # place each value in isrdata at the correct point in the array
+        #         for i in isrdata:
+        #             bindata[j] = i
+        #             # decrement the index to fill in the array backwards.
+        #             j = j-1
             
         pass
-
-
-            
-
