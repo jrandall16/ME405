@@ -7,9 +7,9 @@ start and stop signals to turn on the sumo bot.
 @date Sat Feb  22 10:59:12 2017
 """
 
-from micropython import const, alloc_emergency_exception_buf
-import pyb
-import utime
+from micropython import const, alloc_emergency_exception_buf  # pylint: disable=import-error
+import pyb  # pylint: disable=import-error
+import utime  # pylint: disable=import-error
 import cotask
 import task_share
 import print_task
@@ -75,29 +75,12 @@ class Infared:
         self.ir_data.put (timerObject.channel(self.channel).capture(),
                             in_ISR=True )
 
-    def interpretIRdata (self):
-        '''This method interprets a true full set of IR pulses (68 pulses)
-        Note: the subdata list must be defined 
-        Raises Exception if 2s complement of bytes are not accurate
+    def formattedBytes (self, rawBits):
+        '''This method interprets a set of 32 bits into bytes
+        @param rawBits: A list of 32 rawBits
+        @return returns a formatted string of the 4 named bytes if successful,
+            returns False if unsuccessful
         '''
-
-        def assignBits (rangeLow, rangeHigh):
-            '''This nested function interprets a range of pulse widths and
-            determines if they are high or low bits, and then appends these
-            bits to a list.
-            @param rangeLow: rangeLow is the lowest number of the range
-            @param rangeHigh: rangeHigh is the highest number of the range
-            @return bits: bits is a list containing the integer value of bits
-            '''
-
-            bits = []
-            for i in range (rangeLow,rangeHigh,2):
-                total = self.subdata[i] + self.subdata[i+1]
-                if total < 1300:
-                    bits.append(0)
-                elif total > 2000:
-                    bits.append(1)
-            return bits
         
         def assignBytes (bits, decimal=False):
             '''This nested function interprets a list of bits and converts them
@@ -105,9 +88,8 @@ class Infared:
             @param bits: bits is a list of bits
             @param decimal: decimal is boolean, set to true if the
                 decimal Value is required
-            @return bytes: bytes is a formatted string of bits
-            @return decimalValue: decimalValue is the decimal value of the byte
-                or bytes
+            @return bytes, decimalValue: bytes is a formatted string of bits
+                decimalValue is the decimal value of the byte or bytes
             '''
             decimalValue = 0
             for n in range (len(bits)):
@@ -121,11 +103,10 @@ class Infared:
                 return formattedByte
 
         # initialize the rawBits list to empty
-        rawBits = assignBits (2,66)
-        addressBits = assignBits (2,18)
-        naddressBits = assignBits (18,34)
-        commandBits = assignBits (34,50)
-        ncommandBits = assignBits (50,66)
+        addressBits = rawBits[0:7]
+        naddressBits = rawBits[8:15]
+        commandBits = rawBits[16:23]
+        ncommandBits = rawBits[24:31]
 
 
         rawBytes = assignBytes(rawBits)
@@ -137,125 +118,108 @@ class Infared:
         if int(addressByte) ^  int(naddressByte) == 255:
 
             if int(commandByte) ^ int(ncommandByte) == 255:
-
-                print('--------------- New Packet ---------------\n'
-                    + '  RAW:  ' + rawBytes + '\n'
-                    + ' ADDR:  ' + addressByte + '\n'
-                    + 'nADDR:  ' + naddressByte + '\n'
-                    + '  CMD:  ' + commandByte + '\n'
-                    + ' nCMD:  ' + ncommandByte + '\n'
-                    + '\n'
-                    + 'Address (Decimal):  ' + str(addressByteD) + '\n'
-                    + 'Command (Decimal):  ' + str(commandByteD) + '\n'
-                    + '------------------------------------------')
-                    # empty data and subdata lists after print complete
-
-                self.data = []
-                self.subdata = []
+                # return ('--------------- New Packet ---------------\n'
+                #         + '  RAW:  ' + rawBytes + '\n'
+                #         + ' ADDR:  ' + addressByte + '\n'
+                #         + 'nADDR:  ' + naddressByte + '\n'
+                #         + '  CMD:  ' + commandByte + '\n'
+                #         + ' nCMD:  ' + ncommandByte + '\n'
+                #         + '\n'
+                #         + 'Address (Decimal):  ' + str(addressByteD) + '\n'
+                #         + 'Command (Decimal):  ' + str(commandByteD) + '\n'
+                #         + '------------------------------------------')
+                print('good packet')
             else:
-                raise Exception('2s complement of commandByte is not accurate')
+                print('2s complement of commandByte is not accurate')
+                # return False
         else:
-            raise Exception('2s complement of addressByte is not accurate')
+            print('2s complement of addressByte is not accurate')
+            # return False
 
+        return ('--------------- New Packet ---------------\n'
+                + '  RAW:  ' + rawBytes + '\n'
+                + ' ADDR:  ' + addressByte + '\n'
+                + 'nADDR:  ' + naddressByte + '\n'
+                + '  CMD:  ' + commandByte + '\n'
+                + ' nCMD:  ' + ncommandByte + '\n'
+                + '\n'
+                + 'Address (Decimal):  ' + str(addressByteD) + '\n'
+                + 'Command (Decimal):  ' + str(commandByteD) + '\n'
+                + '------------------------------------------')
+        
+    def translateRawIRdata (self):
+        ''' This nested function interprets the raw data and determines
+        pulse widths. These pulse widths are appended to the rawBits list.
+        Note: The data list must be initialized before calling this
+            function
+        @return: Returns rawBits as a list of 32 bits if successful,
+            returns False if unsuccessful
+        '''
+        rawData = self.data
+        rawBits = []
+        start = False
+        # find the difference between edges 
+        for i in range (0,len(rawData) - 2, 2):
+            delta = rawData[i+2] - rawData[i]
+            
+            if delta < 0:
+                delta = delta + 65535
+            if start:
+                if delta < 1300 and delta > 1000:
+                    rawBits.append(0)
+                elif delta > 2100 and delta < 2400:
+                    rawBits.append(1)
+                else:
+                    print('not a valid bit. Delta = ' + str(delta))
+                    rawBits = []
+                    start = False
+                if len(rawBits) == 32:
+                    self.data = []
+                    return rawBits
+                
+            if delta > 13000 and delta < 15000:
+                if i:
+                    del self.data[0:i]
+                    print('deleted data')
+                    break
+                else:
+                    print('start')
+                    start = True
+                    continue
+            elif delta > 11000 and delta < 12500:
+                del self.data[i:i+4]
+                print('repeat')
+                break
+            elif self.data[i+1] - self.data[i] > 10000:
+                del self.data[i:i+1]
+                print('large gap')
+                break
+            else:
+                continue
 
     def readInfaredSensorTask (self):
         ''' This method reads the data stored in the queue and runs the
         interpretIRdata function when a true full set of pulses is found.
         '''
 
-        def removeBadData ():
-            x = False
-            for i in range (0,len(self.subdata) - 1,2):
-                total = self.subdata[i] + self.subdata[i+1]
-                if total > 13000 and total < 15000:
-                    print('heres the leading pulse: ' + str(total))
-                    x = i
-            if x:
-                del self.subdata[0:x]
-                del self.data[0:x]
-
-                while len(self.data) < 68:
-                    self.data.append(self.ir_data.get())
-
-                interpretRawIRdata(self.data)
-                return True
-            else:
-                self.data = []
-                self.subdata = []
-                return False
-
-        def interpretRawIRdata (rawData):
-            ''' This nested function interprets the raw data and determines
-            pulse widths. These pulse widths are appended to the subdata list.
-            Note: The subdata list must be initialized before calling this
-                function
-            @param rawData: rawData is a list of all the raw data time stamps
-            '''
-            # find the difference between edges 
-            for i in range (len(rawData) - 1):
-
-                delta = rawData[i+1] - rawData[i]
-                
-                if delta < 0:
-                    delta = delta + 65535
-                self.subdata.append(delta)
-
-
         # Initialization for this task.
         # Initialize data and subdata lists to empty
         # Initialize the full_set_of_pulses flag to 0
         self.data = []
         self.subdata = []
-        self.full_set_of_pulses.put(0)
 
         while True:
             while len(self.data) < 68:
                 self.data.append(self.ir_data.get())
 
-            interpretRawIRdata(self.data)
-            
-            leading_pulse = self.subdata[0] + self.subdata[1]
+            successfulTranslate = self.translateRawIRdata()
 
+            while not successfulTranslate:
+                successfulTranslate = self.translateRawIRdata()
+                break
 
-            if leading_pulse > 13000 and leading_pulse < 15000:
-                try:
-                    self.interpretIRdata()
-                    self.data = []
-                    self.subdata = []
-                except Exception as e:
-                    print('Exception 1: ' + str(e))
-                    pass
-
-
+            if successfulTranslate:
+                formattedBytes = self.formattedBytes(successfulTranslate)
+                print(formattedBytes)
             else:
-                # x = False
-                # for i in range (0,len(self.subdata) - 1,2):
-                #     total = self.subdata[i] + self.subdata[i+1]
-                #     if total > 13000 and total < 15000:
-                #         print('heres the leading pulse: ' + str(total))
-                #         x = i
-                # if x:
-                #     del self.subdata[0:x]
-                #     del self.data[0:x]
-
-                #     while len(self.data) < 68:
-                #         self.data.append(self.ir_data.get())
-
-                #     interpretRawIRdata(self.data)
-                if removeBadData() == True:
-                    try:
-                        self.interpretIRdata()
-                        self.data = []
-                        self.subdata = []
-                    except Exception as e:
-                        print('Exception 2: ' + str(e))
-                        del self.data [0:1]
-                        del self.subdata [0:1]
-                        
-                        if removeBadData() == True:
-                            self.interpretIRdata()
-                            self.data = []
-                            self.subdata = []
-                        self.data = []
-                        self.subdata = []
-                        pass
+                print('else')

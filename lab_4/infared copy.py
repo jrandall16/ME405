@@ -162,122 +162,62 @@ class Infared:
         interpretIRdata function when a true full set of pulses is found.
         '''
 
-        def removeBadData ():
-            x = False
-            for i in range (0,66,2):
-                total = self.subdata[i] + self.subdata[i+1]
-                if total > 13400 and total < 13600:
-                    print('heres the leading pulse: ' + str(total))
-                    x = i
-            if x:
-                print('got here')
-                del self.subdata[0:x]
-                del self.data[0:x]
-
-                while len(self.data) < 68:
-                    self.data.append(self.ir_data.get())
-
-                interpretRawIRdata(self.data)
-                
-                return True
-            else:
-                print('3 here')
-                self.data = []
-                self.subdata = []
-                return False
-
-        def interpretRawIRdata (rawData):
+        def interpretRawIRdata ():
             ''' This nested function interprets the raw data and determines
-            pulse widths. These pulse widths are appended to the subdata list.
-            Note: The subdata list must be initialized before calling this
+            pulse widths. These pulse widths are appended to the rawBits list.
+            Note: The data list must be initialized before calling this
                 function
-            @param rawData: rawData is a list of all the raw data time stamps
+            @return: Returns rawBits if successful, returns False if 
+                unsuccessful
             '''
+            rawData = self.data
+            self.data = []
+            rawBits = []
+            start = False
             # find the difference between edges 
-            for i in range (len(rawData) - 1):
+            for i in range (0,len(rawData) - 1, 2):
 
-                delta = rawData[i+1] - rawData[i]
+                delta = rawData[i+2] - rawData[i]
                 
                 if delta < 0:
                     delta = delta + 65535
-                self.subdata.append(delta)
-
-        def determinePacketLength():
-            packet_length = 0
-            for i in self.subdata[0:66]:
-                packet_length += i
-            if packet_length > 66000 and packet_length < 69000:
-                return packet_length
-            else:
-                print('bad packet length: ' + str(packet_length))
-                return False
+                if start:
+                    while len(rawBits) < 32:
+                        if delta < 1300 and delta > 1000:
+                            rawBits.append(0)
+                            print(0)
+                        elif delta > 2100 and delta < 2400:
+                            rawBits.append(1)
+                            print(``)
+                        else:
+                            print('not a valid bit. Delta = ' + str(delta))
+                            rawBits = []
+                            start = False
+                            continue
+                    if len(rawBits) == 32:
+                        return rawBits
+                    else:
+                        print('somehow got here')
+                        return False
+                    
+                if delta > 13000 and delta < 15000:
+                    print('start')
+                    start = True
+                    continue
+                else:
+                    continue
+ 
         # Initialization for this task.
         # Initialize data and subdata lists to empty
         # Initialize the full_set_of_pulses flag to 0
         self.data = []
         self.subdata = []
-        self.full_set_of_pulses.put(0)
-        last_good_pulse = ''
 
         while True:
             while len(self.data) < 68:
                 self.data.append(self.ir_data.get())
 
-            interpretRawIRdata(self.data)
+            successfulInterpretation = interpretRawIRdata()
 
-            packet_length = determinePacketLength()
-
-            if packet_length:
-                last_good_pulse = self.interpretIRdata()
-                print(last_good_pulse)
-                self.data = []
-                self.subdata = []
-            while not packet_length:
-                if removeBadData():
-                    print(self.subdata)
-                    print(len(self.subdata))
-                    packet_length = determinePacketLength()
-                    print('new packet: ' + str(packet_length))
-                    if packet_length:
-                        last_good_pulse = self.interpretIRdata()
-                        print(last_good_pulse)
-                        self.data = []
-                        self.subdata = []
-                    else:
-                        self.data = []
-                        self.subdata = []
-            # if leading_pulse > 13000 and leading_pulse < 15000:
-
-            #     last_good_pulse = self.interpretIRdata()
-            #     if last_good_pulse:
-            #         print(last_good_pulse)
-            #         self.data = []
-            #         self.subdata = []
-            #     else:
-            #         print('not a good pulse')
-            #         pass
-
-            # elif removeBadData():
-            #     if  self.interpretIRdata():
-            #         print(self.interpretIRdata())
-            #         self.data = []
-            #         self.subdata = []
-            #     else:
-            #         print('2 not a good pulse')
-            #         print(self.subdata)
-            #         del self.data [0:2]
-            #         del self.subdata [0:2]
-            #         print(self.subdata)
-            #         if removeBadData():
-            #             print ('3')
-            #             if  self.interpretIRdata():
-            #                 print(self.interpretIRdata())
-            #                 self.data = []
-            #                 self.subdata = []
-            #             else:
-            #                 print('4')
-            #         else:
-            #             print('5')
-            # else:
-            #     print('6')
-            #     continue
+            while not successfulInterpretation:
+                successfulInterpretation = interpretRawIRdata()
