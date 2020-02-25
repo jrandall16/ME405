@@ -122,17 +122,42 @@ class MotorDriver:
         cause torque in one direction, negative values
         in the opposite direction.
         @ param level: level is an unisgned integer that represents the 
-        duty cycle [%] to be sent to the motor
-        @ param direction: direction is a boolean, true represents forward
-        and false represents backwards motion
+            duty cycle [%] to be sent to the motor
+        @ param direction: direction is an integer, 1 represents forward
+            and -1 represents backwards motion, False represents stop.
         '''
         
-        if direction == True:
+        if direction == 1:
             self.ch.pulse_width_perself.directionPin.high()
+            self.ch.pulse_width_percent (level)
+        elif direction == -1:
+            self.ch.pulse_width_perself.directionPin.low()
             self.ch.pulse_width_percent (level)
         else:
             self.ch.pulse_width_perself.directionPin.low()
-            self.ch.pulse_width_percent (level)
+            self.ch.pulse_width_percent (0)
+    
+    def turn (self, amount):
+        ''' This method turns the bot in increments of 90 degrees by setting
+        the pulse_width_percent for a duration of time according to how far
+        of a turn is requested'''
+
+        if amount == 1:
+            self.set_duty_cycle('amount',1)
+        elif amount == 2:
+            self.set_duty_cycle('amount',1)
+        elif amount == 3:
+            self.set_duty_cycle('amount',1)
+        elif amount == 4:
+            self.set_duty_cycle('amount',1)
+        elif amount == -1:
+            self.set_duty_cycle('amount',2)
+        elif amount == -2:
+            self.set_duty_cycle('amount',2)
+        elif amount == -3:
+            self.set_duty_cycle('amount',2)
+        elif amount == -4:
+            self.set_duty_cycle('amount',2)
 
 class Encoder:
     ''' This class implements reading and resetting of the motor encoder

@@ -11,17 +11,18 @@ can be modified easily in one place. Constant names are self explained
 WHEEL_RADIUS = 0.75     # [in]
 KP = 0.01     # [analyze units]
 
-MOT1_PWM_TIMER = 1
-MOT1_PWM_CH = 1
-ENC1_TIMER = 2
-ENC1A_CH = 3
-ENC1B_CH = 4
-
-MOT2_PWM_TIMER = 1
+MOT_FREQ = 16000
+MOT_PWM_TIMER = 2
+MOT1_PWM_CH = 3
 MOT2_PWM_CH = 4
-ENC1_TIMER = 3
-ENC1A_CH = 1
-ENC1B_CH = 2
+
+ENC1_TIMER = 1
+ENC1A_CH = 2
+ENC1B_CH = 3
+
+ENC2_TIMER = 3
+ENC2A_CH = 1
+ENC2B_CH = 2
 
 IR_TIMER = 2
 IR_CH = 2

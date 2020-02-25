@@ -68,8 +68,8 @@ def motor_1_driver ():
     
     # init motorDriver
     motor = motors.MotorDriver(pins.M1DIR, pins.M1PWM,
-                                constant.MOT1_PWM_TIMER, constant.MOT1_PWM_CH,
-                                freq)
+                                constant.MOT_PWM_TIMER, constant.MOT1_PWM_CH,
+                                constant.MOT_FREQ)
 
     state = STOP
     while True:
@@ -88,23 +88,7 @@ def motor_1_driver ():
             yield(state)
 
         if state == TURN:
-            if turn == 1:
-                motor.set_duty_cycle(10,0)
-            elif turn == 2:
-                motor.set_duty_cycle(100,0)
-            elif turn == 3:
-                motor.set_duty_cycle(1000,0)
-            elif turn == 4:
-                motor.set_duty_cycle(10,-0)
-            elif turn == -1:
-                motor.set_duty_cycle(100,-0)
-            elif turn == -2:
-                motor.set_duty_cycle(1000,-0)
-            elif turn == -3:
-                motor.set_duty_cycle(1000,-0)
-            elif turn == -4:
-                motor.set_duty_cycle(1000,-0)
-            
+            motor.turn(turn) 
             # always transition to RUN state
             state = RUN
             yield(state)
@@ -151,32 +135,33 @@ def motor_1_controller ():
 
             yield(state)
 
+
         # make a turn specified by the shares
-        if state == TURN:
-            if cw90deg:
-                controller.outputSpeed(currentSpeed)
-                controller.setKp(Kp)
-                controller.setDesiredSpeed(desiredSpeed)
-            elif cw180deg:
-                controller.outputSpeed(currentSpeed)
-                controller.setKp(Kp)
-                controller.setDesiredSpeed(desiredSpeed)
-            elif cw360deg:
-                controller.outputSpeed(currentSpeed)
-                controller.setKp(Kp)
-                controller.setDesiredSpeed(desiredSpeed)
-            elif ccw90deg:
-                controller.outputSpeed(currentSpeed)
-                controller.setKp(Kp)
-                controller.setDesiredSpeed(desiredSpeed)
-            elif ccw90deg:
-                controller.outputSpeed(currentSpeed)
-                controller.setKp(Kp)
-                controller.setDesiredSpeed(desiredSpeed)
-            elif ccw90deg:
-                controller.outputSpeed(currentSpeed)
-                controller.setKp(Kp)
-                controller.setDesiredSpeed(desiredSpeed)
+        # if state == TURN:
+        #     if cw90deg:
+        #         controller.outputSpeed(currentSpeed)
+        #         controller.setKp(Kp)
+        #         controller.setDesiredSpeed(desiredSpeed)
+        #     elif cw180deg:
+        #         controller.outputSpeed(currentSpeed)
+        #         controller.setKp(Kp)
+        #         controller.setDesiredSpeed(desiredSpeed)
+        #     elif cw360deg:
+        #         controller.outputSpeed(currentSpeed)
+        #         controller.setKp(Kp)
+        #         controller.setDesiredSpeed(desiredSpeed)
+        #     elif ccw90deg:
+        #         controller.outputSpeed(currentSpeed)
+        #         controller.setKp(Kp)
+        #         controller.setDesiredSpeed(desiredSpeed)
+        #     elif ccw90deg:
+        #         controller.outputSpeed(currentSpeed)
+        #         controller.setKp(Kp)
+        #         controller.setDesiredSpeed(desiredSpeed)
+        #     elif ccw90deg:
+        #         controller.outputSpeed(currentSpeed)
+        #         controller.setKp(Kp)
+        #         controller.setDesiredSpeed(desiredSpeed)
 
             # always transition to RUN state
             state = RUN
@@ -206,9 +191,10 @@ def motor_1_encoder():
     RESET = const(2)
 
     ## call class Encoder()
-    encoder = motors.Encoder (encoderpinA, channelA,
-                                encoderpinB, channelB, timer)
+    encoder = motors.Encoder (pins.ENC1A, constant.ENC1A_CH, pins.ENC1B,
+                                constant.ENC1B_CH, constant.ENC1_TIMER)
 
+    state = RESET
     while True:
         if state == READ:
             if emergency:

@@ -11,10 +11,10 @@ easy to read format to use.
 import pyb # pylint: disable=import-error
 
 # ENC1A
-ENC1A = pyb.Pin.board.PA2
+ENC1A = pyb.Pin.board.PA9
 
 # ENC1B
-ENC1B = pyb.Pin.board.PA3
+ENC1B = pyb.Pin.board.PA10
 
 # ENC2A
 ENC2A = pyb.Pin.board.PA6
@@ -23,10 +23,10 @@ ENC2A = pyb.Pin.board.PA6
 ENC2B = pyb.Pin.board.PA7
 
 # MOTOR1 PWM
-M1PWM = pyb.Pin.board.PA8
+M1PWM = pyb.Pin.board.PB10
 
 # MOTOR2 PWM
-M2PWM = pyb.Pin.board.PA11
+M2PWM = pyb.Pin.board.PB11
 
 # MOTOR1 Direction
 M1DIR = pyb.Pin.board.PC7
