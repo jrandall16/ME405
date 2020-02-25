@@ -7,28 +7,31 @@ lab project.
 @author Jacob Randall and Connor Bush
 @date Sat Feb  22 10:59:12 2017
 """
-import pyb
-import utime
+import pyb # pylint: disable=import-error
+import utime # pylint: disable=import-error
 import constant
 import math
 
 class MotorController:
-    ''' This class controlls the motor speed using closed-loop
-        proportional (Kp) control.'''
+    ''' This class controls the motor speed using closed-loop
+        proportional (Kp) control.
+    '''
     
-    def __init__ (self, Kp, desiredSpeed):
+    def __init__ (self, Kp):
         ''' This method initializes the controller with
         the constants needed for closed loop control.
         @ param Kp: Kp is the proportional gain for the controller.
         @ param desiredSpeed: desiredSpeed is the desired value
-            that the motor is trying to reach. [ft/s]'''
+            that the motor is trying to reach. [ft/s]
+        '''
         
         ## Kp is the proportional gain for the controller
         # Kp is in units of % Duty Cycle per ft/s
         self.Kp = Kp
 
         ## desiredSpeed is the desired speed for the motor
-        self.desiredSpeed = desiredSpeed
+        # Initialized to 0.
+        self.desiredSpeed = 0
 
         ## lastDC is the last Duty Cycle sent to the motor.
         # Initialized to 0.
@@ -38,10 +41,12 @@ class MotorController:
         ''' This method runs the control algorithm and
         returns a corrected duty cycle to the motor via PWM
         @ param currentSpeed: currentSpeed is the current speed
-            measured by the encoder. [ticks/ms]'''
+            measured by the encoder. [ticks/ms]
+        '''
 
         ## currentSpeed needs to be converted from [ticks/ms] to [ft/s]
-        currentSpeed = currentSpeed * 1000 * (1/900) * 2 * math.pi * (constant.WHEEL_RADIUS/12)
+        currentSpeed = currentSpeed * 1000 * (1/900) * 2 * \
+                        math.pi * (constant.WHEEL_RADIUS/12)
         ## error is the deviation from the desired speed value [ft/s]
         error = self.desiredSpeed - currentSpeed
 
@@ -57,9 +62,11 @@ class MotorController:
         ''' This method assigns the desiredSpeed a new
         value for changes in desired Speed during operation.
         @ param point: speed is the encoder location defined
-            in main that the controller is tyring reach.'''
+            in main that the controller is tyring reach.
+        '''
         
-        ## desiredSpeed is reset to the input value while running the motor controller
+        ## desiredSpeed is reset to the input value while
+        # running the motor controller
         self.desiredSpeed = desiredSpeed
 
     def setKp (self, Kp):
@@ -67,24 +74,29 @@ class MotorController:
         a new value for special cases during operation.
         i.e. during motor startup to overcome stiction.
         @ param Kp: Kp is the updated value input during
-            operation that replaces the intial value of Kp.'''      
+            operation that replaces the intial value of Kp.
+        '''      
 
         ## Kp is reset to the value of Kp while running the motor controller
         self.Kp = Kp
 
 class MotorDriver:
     ''' This class implements a motor driver for the
-    ME405 board. '''
+    ME405 board.
+    '''
     def __init__ (self, directionPin, PWMpin, PWMtimer, PWMchannel, freq):
         ''' Creates a motor driver by initializing GPIO
         pins and turning the motor off for safety. 
         @param directionPin: directionPin is a pyb.Pin.board object
-            for the motor direction output pin (high is forwards, low is backwards)
+            for the motor direction output pin
+            (high is forwards, low is backwards)
         @param PWMpin: PWMpin is a pyb.Pin.board object for the motor 
             PWM control output pin
         @param PWMtimer: PWMtimer is the PWM timer associated with the pin
-        @param PWMchannel: PWMchannel is the PWM channel associated with the timer
-        @param freq: freq is the frequency in Hz at which to run the PWM'''
+        @param PWMchannel: PWMchannel is the PWM channel
+            associated with the timer
+        @param freq: freq is the frequency in Hz at which to run the PWM
+        '''
         
         ## directionPin is the pyb.Pin object after the selcted pin has been 
         # initialized and set to output
@@ -112,7 +124,8 @@ class MotorDriver:
         @ param level: level is an unisgned integer that represents the 
         duty cycle [%] to be sent to the motor
         @ param direction: direction is a boolean, true represents forward
-        and false represents backwards motion'''
+        and false represents backwards motion
+        '''
         
         if direction == True:
             self.ch.pulse_width_perself.directionPin.high()
@@ -122,45 +135,41 @@ class MotorDriver:
             self.ch.pulse_width_percent (level)
 
 class Encoder:
-    ''' This class implements reading and resetting of the motor encoder '''
+    ''' This class implements reading and resetting of the motor encoder
+    '''
     def __init__ (self, encoderpinA, channelA, encoderpinB, channelB, timer):
         ''' Initializes timers for the encoder.
         @param pingroup Input of a character 'B' or 'C' representing 
-        pingroups B6/B7 or C6/C7 on the cpu respectively '''
+        pingroups B6/B7 or C6/C7 on the cpu respectively
+        '''
         
         print ('Setting up the encoder')
-            ## If using the pingroup B, need to utilize timer 4
-            ## If using pingroup B, implied that pin B6 uses channel 1 and pin B7 uses channel 2
-            encA = pyb.Pin (encoderpinA, mode = pyb.Pin.IN)
-            encB = pyb.Pin (encoderpinB, mode = pyb.Pin.IN)
 
-        else:
-            ## throw exception
-            return
+        encA = pyb.Pin (encoderpinA, mode = pyb.Pin.IN)
+        encB = pyb.Pin (encoderpinB, mode = pyb.Pin.IN)
 
         print ('Done Setting Up Encoder')
 
-        ## TimerA object specific to which pingroup the Encoder class is passed
+        ## tim object specific to which pingroup the Encoder class is passed
         # Initialized with prescale set to zero, period set to 65535 (Hex FFFF)
-        self.tim = pyb.Timer (timerA, prescaler=0, period=0xFFFF)
+        self.tim = pyb.Timer (timer, prescaler=0, period=0xFFFF)
 
         ## Channel 1 object specific to the pingroup selected
-        self.ch_1 = self.tim.channel(channelA, pyb.Timer.ENC_A, pin = encoderpinA)
+        self.ch_1 = self.tim.channel(channelA, pyb.Timer.ENC_A, pin = encA)
 
         ## Channel 2 object specific to the pingroup selected
-        self.ch_2 = self.tim.channel(channelB, pyb.Timer.ENC_B, pin = encoderpinB)
+        self.ch_2 = self.tim.channel(channelB, pyb.Timer.ENC_B, pin = encB)
         
         # initialize last value to 0 to start encoder at position 0
         ## Last known count of the encoder
         self.last_value = 0
 
-        # set current position to zero as well to ensure encoder is zeroed at start
         ## The current corrected position of the encoder
         self.current_value = 0
 
         # initialize last value to 0 to start timer at 0
         ## The last time read by the timer
-        self.last_time = 0'
+        self.last_time = 0
 
         # set current time to zero as well to ensure timer is zeroed at start
         ## The current time read by the timer
@@ -176,9 +185,10 @@ class Encoder:
         current_time = utime.tick_ms()
         
 
-        # delta is a signed value and is the difference between the current reading
-        # the previous reading. If The value is positive, the motor was turning clockwise, if
-        # negative, it was turning counterclockwise.
+        # delta is a signed value and is the difference between the current
+        # reading the previous reading. If The value is positive,
+        # the motor was turning clockwise, if negative, it was turning
+        # counterclockwise.
         delta = (current_value - self.last_value)
 
         if delta <= -32767:
@@ -190,10 +200,13 @@ class Encoder:
         else:
             pass
         
-        # using the adjusted position data, find the speed of in ticks per millisecond
-        tickspertime = (current_value - self.last_value)/(current_time - self.last_time)
+        # using the adjusted position data, find the speed of the motor
+        # in ticks per millisecond
+        tickspertime = (current_value - self.last_value) \
+                        / (current_time - self.last_time)
 
-        # set the current value of time and position to the last value, so the next time through a new change is computed
+        # set the current value of time and position to the last value, so the
+        # next time through a new change is computed
         self.last_value = current_value
         self.last_time = current_time
         self.currentSpeed += tickspertime
