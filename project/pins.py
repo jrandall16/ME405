@@ -11,34 +11,34 @@ easy to read format to use.
 import pyb # pylint: disable=import-error
 
 # ENC1A
-ENC1A = pyb.Pin.board.PA9
+ENC1A = pyb.Pin.board.PB6
 
 # ENC1B
-ENC1B = pyb.Pin.board.PA10
+ENC1B = pyb.Pin.board.PB7
 
 # ENC2A
-ENC2A = pyb.Pin.board.PA6
+ENC2A = pyb.Pin.board.PC6
 
 # ENC2B
-ENC2B = pyb.Pin.board.PA7
+ENC2B = pyb.Pin.board.PC7
 
 # MOTOR1 PWM
-M1PWM = pyb.Pin.board.PB10
+M1PWM = pyb.Pin.board.PA7
 
 # MOTOR2 PWM
-M2PWM = pyb.Pin.board.PB11
+M2PWM = pyb.Pin.board.PA6
 
 # MOTOR1 Direction
-M1DIR = pyb.Pin.board.PC7
+M1DIR = pyb.Pin.board.PA8
 
 # MOTOR2 Direction
-M2DIR = pyb.Pin.board.PB6
+M2DIR = pyb.Pin.board.PA9
 
 # IR input
 IR = pyb.Pin.board.PA5
 
 # SDA
-SDA = pyb.Pin.board.PB7
+SDA = pyb.Pin.board.PB9
 
 # SCL
 SCL = pyb.Pin.board.PB8

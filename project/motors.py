@@ -84,7 +84,7 @@ class MotorDriver:
     ''' This class implements a motor driver for the
     ME405 board.
     '''
-    def __init__ (self, directionPin, PWMpin, PWMtimer, PWMchannel, freq):
+    def __init__ (self, directionPin, PWMpin, PWMtimer, PWMchannel, freq, adjust):
         ''' Creates a motor driver by initializing GPIO
         pins and turning the motor off for safety. 
         @param directionPin: directionPin is a pyb.Pin.board object
@@ -96,6 +96,8 @@ class MotorDriver:
         @param PWMchannel: PWMchannel is the PWM channel
             associated with the timer
         @param freq: freq is the frequency in Hz at which to run the PWM
+        @param adjust: adjust is a boolean, True means flip the direction of 
+            rotation
         '''
         
         ## directionPin is the pyb.Pin object after the selcted pin has been 
@@ -115,6 +117,23 @@ class MotorDriver:
 
         # initialize the motor speed to 0% as a precaution
         self.ch.pulse_width_percent (0)
+
+        # initialize adjust variable to the class scope
+        self.adjust = adjust
+        # initialize direction to forward
+        self.forward()
+    
+    def forward(self):
+        if self.adjust:
+            self.directionPin.high()
+        else:
+            self.directionPin.low()
+
+    def reverse(self):
+        if self.adjust:
+            self.directionPin.low()
+        else:
+            self.directionPin.high()
         
     def set_duty_cycle (self, level, direction):
         ''' This method sets the duty cycle to be sent
@@ -128,13 +147,13 @@ class MotorDriver:
         '''
         
         if direction == 1:
-            self.ch.pulse_width_perself.directionPin.high()
+            self.forward()
             self.ch.pulse_width_percent (level)
         elif direction == -1:
-            self.ch.pulse_width_perself.directionPin.low()
+            self.reverse()
             self.ch.pulse_width_percent (level)
         else:
-            self.ch.pulse_width_perself.directionPin.low()
+            self.forward()
             self.ch.pulse_width_percent (0)
     
     def turn (self, amount):
@@ -192,6 +211,9 @@ class Encoder:
         ## The current corrected position of the encoder
         self.current_value = 0
 
+        ## The current speed of the encoder 
+        self.currentSpeed = 0
+
         # initialize last value to 0 to start timer at 0
         ## The last time read by the timer
         self.last_time = 0
@@ -207,7 +229,7 @@ class Encoder:
         '''
         # read the encoder and save that value as the current value
         current_value = self.tim.counter()
-        current_time = utime.tick_ms()
+        current_time = utime.ticks_ms()
         
 
         # delta is a signed value and is the difference between the current
