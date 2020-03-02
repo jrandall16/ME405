@@ -11,6 +11,7 @@ from micropython import const, alloc_emergency_exception_buf  # pylint: disable=
 import pyb  # pylint: disable=import-error
 import utime  # pylint: disable=import-error
 import task_share
+import cotask
 
 
 class Infared:
@@ -52,8 +53,18 @@ class Infared:
         # A queue to be used as a buffer for interrupt timestamp data. Buffer
         # size is greater than full pulse count to account for repeat codes
         # that disrupt a full pulse set.
-        self.ir_data = task_share.Queue('I', 140, thread_protect=False,
+        self.ir_data = task_share.Queue('I', 200, thread_protect=False,
                                         overwrite=False, name="ir_data")
+        # Data is a class scoped list that is filled with timestamps
+        # from the ir_data queue
+        self.data = []
+
+        self.go = task_share.Share('I', thread_protect=False, name="go")
+        self.go.put(0)
+
+        self.task = cotask.Task(self.readInfaredSensorTask,
+                                name='Infared Reading Task',
+                                priority=0, profile=True, trace=False)
 
     def irISR(self, timerObject):
         ''' This method is the callback function for the interrupt pin. It runs
@@ -64,8 +75,12 @@ class Infared:
 
         # using the timerObject from the interrupt,collect the timestamp data
         # from the IR signal.
-        self.ir_data.put(timerObject.channel(self.channel).capture(),
-                         in_ISR=True)
+
+        if self.ir_data.num_in() >= 68:
+            self.task.go()
+        if not self.ir_data.full():
+            self.ir_data.put(timerObject.channel(self.channel).capture(),
+                             in_ISR=True)
 
     def formattedBytes(self, rawBits):
         '''This method interprets a set of 32 bits into bytes
@@ -151,112 +166,109 @@ class Infared:
         # initialize rawBits list
         rawBits = []
 
-        # init start flag to False
-        start = False
-
         # find the difference between falling edges
         for i in range(0, len(rawData) - 2, 2):
             delta = rawData[i+2] - rawData[i]
-
             # adjust data if overflowed
             if delta < 0:
                 delta = delta + 65535
-
-            # check if start flag is True
-            if start:
-
-                # check if binary low
-                if delta < 1300 and delta > 1000:
-                    rawBits.append(0)
-                # check if binary high
-                elif delta > 2100 and delta < 2400:
-                    rawBits.append(1)
-                else:
-                    # if somehow neither, clear the rawBits list
-                    # and set start flag to False then fall out to
-                    # next if statement
-                    print('not a valid bit. Delta = ' + str(delta))
-                    rawBits = []
-                    start = False
-
-                # if we have a full set of bits, clear the data list
-                # and return the rawBits list
-                if len(rawBits) == 32:
-                    self.data = []
-                    return rawBits
-            # check for start signal
-            if delta > 13000 and delta < 15000:
-                # if the start signal did not occur at the beginning
-                # of the list, then delete all the data leading up to
-                # it and break out of for loop to fall out and be
-                # re-evaluated
-                if i:
-                    del self.data[0:i]
-                    break
-
-                # otherwise set start flag and resume for loop
-                else:
-                    start = True
-                    continue
-            # if no start signal, check for a repeat signal
-            elif delta > 11000 and delta < 12500:
-                # if found, delete all the data associated with the repeat
-                # signal, then return 1
-                del self.data[i:i+4]
-                return 1
-
-            # the maximum pulse is ~9ms, so anything greater than that
-            # is invalid data.
-            elif self.data[i+1] - self.data[i] > 10000:
-                # if invalid data, delete that pulse and break out of for
-                # loop to fall out and be re-evaluated
-                del self.data[i:i+1]
-                break
-            # if we got this far then the signal was good, so continue
-            # through the for loop
+            print('fun' + str(delta))
+            if delta > 13300 and delta < 13700:
+                pass
+            # check if binary low
+            elif delta < 1300 and delta > 1000:
+                rawBits.append(0)
+            # check if binary high
+            elif delta > 2100 and delta < 2400:
+                rawBits.append(1)
             else:
-                continue
-        # if we fall out of the for loop without returning anything,
-        # then the data needs to refill to a length of 68 and then
-        # be re-evaluated. Return False
+                # if somehow neither, clear the rawBits list
+                # and set start flag to False then fall out to
+                # next if statement
+                print('not a valid bit. Delta = ' + str(delta))
+                self.clearData()
+                break
+
+            # if we have a full set of bits, clear the data list
+            # and return the rawBits list
+            if len(rawBits) == 32:
+                self.clearData()
+                return rawBits
+
         return False
+
+    def clearData(self):
+        self.data = []
+
+    def appendData(self):
+        self.data.append(self.ir_data.get())
 
     def readInfaredSensorTask(self):
         ''' This method reads the data stored in the queue and runs the
         interpretIRdata function when a true full set of pulses is found.
         '''
 
+        self.clearData()
         # Initialization for this task.
-        # Data is a class scoped list that is filled with timestamps
-        # from the ir_data queue
-        self.data = []
-
-        # run consistently (will have to yield for other tasks)
         while True:
-            while len(self.data) < 68:
-                # append timestamps to the data list until it has 68
-                # timestamps
-                self.data.append(self.ir_data.get())
+            # while len(self.data) < 68:
+            # append timestamps to the data list until it has 68
+            # timestamps
+            successfulTranslate = False
+            if len(self.data) == 68:
+                leading_pulse = self.data[2] - self.data[0]
+                if leading_pulse < 0:
+                    leading_pulse = leading_pulse + 65535
+                trailing_pulse = self.data[67] - self.data[66]
+                if trailing_pulse < 0:
+                    trailing_pulse = trailing_pulse + 65535
+                print(leading_pulse)
+                print(trailing_pulse)
+                if leading_pulse > 13300 and leading_pulse < 13700:
+                    if trailing_pulse > 500 and trailing_pulse < 650:
+                        # successfulTranslate is set to the value returned from
+                        # the translateRawIRdata function
+                        successfulTranslate = self.translateRawIRdata()
 
-            # successfulTranslate is set to the value returned from
-            # the translateRawIRdata function
-            successfulTranslate = self.translateRawIRdata()
+                        # if translateRawIRdata returns the rawBits list
+                        if successfulTranslate:
+                            # run the formattedBytes function to return the
+                            # formatted string
+                            formattedBytes = self.formattedBytes(
+                                successfulTranslate)
+                            print(formattedBytes)
+                            yield(0)
 
-            # if translateRawIRdata returns the rawBits list
-            if type(successfulTranslate) == list:
-                # run the formattedBytes function to return the
-                # formatted string
-                formattedBytes = self.formattedBytes(successfulTranslate)
-                print(formattedBytes)
+                        # if translateRawIRdata returns False, re-evaluate the data
+                        # and then break out of the while loop to start at the top
+                        # and be retested. Repeat until a set of rawBits is found
+                        else:
+                            while not successfulTranslate:
+                                successfulTranslate = self.translateRawIRdata()
+                                break
+                    else:
+                        self.clearData()
+                else:
+                    print('here')
+                    print(len(self.data))
+                    start = False
+                    for i in range(0, len(self.data) - 3, 2):
+                        delta = self.data[i + 2] - self.data[i]
+                        # adjust data if overflowed
+                        if delta < 0:
+                            delta = delta + 65535
+                        print(delta)
 
-            # if translateRawIRdata returns 1 (repeat code)
-            elif successfulTranslate == 1:
-                # print the last recieved formatted string
-                print(formattedBytes)
+                        if delta > 13300 and delta < 13700:
+                            start = i
+                            print('start' + str(start))
+                            break
 
-            # if translateRawIRdata returns False, re-evaluate the data
-            # and then break out of the while loop to start at the top
-            # and be retested. Repeat until a set of rawBits is found
-            while not successfulTranslate:
-                successfulTranslate = self.translateRawIRdata()
-                break
+                    if start:
+                        print('asd')
+                        del self.data[0:i]
+                    else:
+                        print('12')
+                        self.clearData()
+            self.appendData()
+            print('end' + str(len(self.data)))
