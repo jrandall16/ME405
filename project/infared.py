@@ -59,12 +59,18 @@ class Infared:
         # from the ir_data queue
         self.data = []
 
-        self.go = task_share.Share('I', thread_protect=False, name="go")
-        self.go.put(0)
-
+        self.address = task_share.Share('I', thread_protect=False,
+                                        name="address")
+        self.command = task_share.Share('I', thread_protect=False,
+                                        name="address")
+        self.command.put(0)
+        self.address.put(0)
         self.task = cotask.Task(self.readInfaredSensorTask,
                                 name='Infared Reading Task',
-                                priority=0, profile=True, trace=False)
+                                priority=1, profile=True, trace=False)
+
+    def getCommand(self):
+        return self.command.get()
 
     def irISR(self, timerObject):
         ''' This method is the callback function for the interrupt pin. It runs
@@ -76,7 +82,7 @@ class Infared:
         # using the timerObject from the interrupt,collect the timestamp data
         # from the IR signal.
 
-        if self.ir_data.num_in() >= 68:
+        if self.ir_data.num_in() > 68:
             self.task.go()
         if not self.ir_data.full():
             self.ir_data.put(timerObject.channel(self.channel).capture(),
@@ -137,17 +143,18 @@ class Infared:
         commandByte, commandByteD = assignBytes(commandBits, True)
         ncommandByte = assignBytes(ncommandBits)
 
+        return addressByteD, commandByteD
         # return a formatted string as follows
-        return ('--------------- New Packet ---------------\n'
-                + '  RAW:  ' + rawBytes + '\n'
-                + ' ADDR:  ' + addressByte + '\n'
-                + 'nADDR:  ' + naddressByte + '\n'
-                + '  CMD:  ' + commandByte + '\n'
-                + ' nCMD:  ' + ncommandByte + '\n'
-                + '\n'
-                + 'Address (Decimal):  ' + str(addressByteD) + '\n'
-                + 'Command (Decimal):  ' + str(commandByteD) + '\n'
-                + '------------------------------------------')
+        # return ('--------------- New Packet ---------------\n'
+        #         + '  RAW:  ' + rawBytes + '\n'
+        #         + ' ADDR:  ' + addressByte + '\n'
+        #         + 'nADDR:  ' + naddressByte + '\n'
+        #         + '  CMD:  ' + commandByte + '\n'
+        #         + ' nCMD:  ' + ncommandByte + '\n'
+        #         + '\n'
+        #         + 'Address (Decimal):  ' + str(addressByteD) + '\n'
+        #         + 'Command (Decimal):  ' + str(commandByteD) + '\n'
+        #         + '------------------------------------------')
 
     def translateRawIRdata(self):
         ''' This nested function interprets the raw data and determines
@@ -172,7 +179,6 @@ class Infared:
             # adjust data if overflowed
             if delta < 0:
                 delta = delta + 65535
-            print('fun' + str(delta))
             if delta > 13300 and delta < 13700:
                 pass
             # check if binary low
@@ -214,61 +220,32 @@ class Infared:
             # while len(self.data) < 68:
             # append timestamps to the data list until it has 68
             # timestamps
-            successfulTranslate = False
-            if len(self.data) == 68:
-                leading_pulse = self.data[2] - self.data[0]
-                if leading_pulse < 0:
-                    leading_pulse = leading_pulse + 65535
-                trailing_pulse = self.data[67] - self.data[66]
-                if trailing_pulse < 0:
-                    trailing_pulse = trailing_pulse + 65535
-                print(leading_pulse)
-                print(trailing_pulse)
-                if leading_pulse > 13300 and leading_pulse < 13700:
-                    if trailing_pulse > 500 and trailing_pulse < 650:
-                        # successfulTranslate is set to the value returned from
-                        # the translateRawIRdata function
-                        successfulTranslate = self.translateRawIRdata()
+            while len(self.data) < 3:
+                self.appendData()
+            if len(self.data) == 3:
+                pulse = 0
+                for i in range(0, 2):
+                    delta = self.data[i+1] - self.data[i]
+                    # adjust data if overflowed
+                    if delta < 0:
+                        delta = delta + 65535
+                    # print('fun' + str(delta))
+                    pulse += delta
+                if pulse > 13000 and pulse < 14000:
+                    # print('start')
+                    while len(self.data) < 68:
+                        self.appendData()
+                    translatedData = self.translateRawIRdata()
+                    address, command = self.formattedBytes(translatedData)
+                    self.address.put(address)
+                    self.command.put(command)
+                    print(command)
 
-                        # if translateRawIRdata returns the rawBits list
-                        if successfulTranslate:
-                            # run the formattedBytes function to return the
-                            # formatted string
-                            formattedBytes = self.formattedBytes(
-                                successfulTranslate)
-                            print(formattedBytes)
-                            yield(0)
-
-                        # if translateRawIRdata returns False, re-evaluate the data
-                        # and then break out of the while loop to start at the top
-                        # and be retested. Repeat until a set of rawBits is found
-                        else:
-                            while not successfulTranslate:
-                                successfulTranslate = self.translateRawIRdata()
-                                break
-                    else:
-                        self.clearData()
+                    self.clearData()
+                    yield(0)
+                elif pulse > 11000 and pulse < 11500:
+                    # print('repeat')
+                    self.appendData()
+                    self.clearData()
                 else:
-                    print('here')
-                    print(len(self.data))
-                    start = False
-                    for i in range(0, len(self.data) - 3, 2):
-                        delta = self.data[i + 2] - self.data[i]
-                        # adjust data if overflowed
-                        if delta < 0:
-                            delta = delta + 65535
-                        print(delta)
-
-                        if delta > 13300 and delta < 13700:
-                            start = i
-                            print('start' + str(start))
-                            break
-
-                    if start:
-                        print('asd')
-                        del self.data[0:i]
-                    else:
-                        print('12')
-                        self.clearData()
-            self.appendData()
-            print('end' + str(len(self.data)))
+                    print('bad')

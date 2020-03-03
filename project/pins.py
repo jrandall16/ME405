@@ -54,7 +54,7 @@ M1DIR = pyb.Pin.board.PA8
 M2DIR = pyb.Pin.board.PA9
 
 # IR input
-IR = pyb.Pin.board.PB1
+IR = pyb.Pin.board.PA15
 
 # SDA
 SDA = pyb.Pin.board.PB9
@@ -62,17 +62,17 @@ SDA = pyb.Pin.board.PB9
 # SCL
 SCL = pyb.Pin.board.PB8
 
-# Distance sensor enable
+# Distance sensor echo
 DIST_EN = pyb.Pin.board.PC8  # maybe
 
 # Distance sensor trigger
 DIST = pyb.Pin.board.PA9  # need to change
 
-# Ultrasonic Distance sensor enable
-US_DIST_EN = pyb.Pin.board.PC6  # need to change
+# Ultrasonic Distance sensor echo
+US_DIST_ECHO = pyb.Pin.board.PB14  # need to change
 
 # Ultrasonic Distance sensor trigger
-US_DIST = pyb.Pin.board.PA10  # need to change
+US_DIST_TRIG = pyb.Pin.board.PB13  # need to change
 
 # IR Reflectance Sensors
 QRT_EN = pyb.Pin.board.PC1

@@ -7,6 +7,8 @@ can be modified easily in one place. Constant names are self explained
 @author Jacob Randall and Connor Bush
 @date Sat Feb  22 10:59:12 2017
 """
+START = 17
+STOP = 18
 
 WHEEL_RADIUS = 0.75     # [in]
 KP = 1     # [analyze units]
@@ -25,5 +27,5 @@ ENC2_TIMER = 8
 ENC2A_CH = 1
 ENC2B_CH = 2
 
-IR_TIMER = 3
-IR_CH = 4
+IR_TIMER = 2
+IR_CH = 1
