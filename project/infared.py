@@ -11,6 +11,7 @@ from micropython import const, alloc_emergency_exception_buf  # pylint: disable=
 import pyb  # pylint: disable=import-error
 import utime  # pylint: disable=import-error
 import task_share
+import cotask
 
 
 class Infared:
@@ -52,8 +53,24 @@ class Infared:
         # A queue to be used as a buffer for interrupt timestamp data. Buffer
         # size is greater than full pulse count to account for repeat codes
         # that disrupt a full pulse set.
-        self.ir_data = task_share.Queue('I', 140, thread_protect=False,
+        self.ir_data = task_share.Queue('I', 200, thread_protect=False,
                                         overwrite=False, name="ir_data")
+        # Data is a class scoped list that is filled with timestamps
+        # from the ir_data queue
+        self.data = []
+
+        self.address = task_share.Share('I', thread_protect=False,
+                                        name="address")
+        self.command = task_share.Share('I', thread_protect=False,
+                                        name="address")
+        self.command.put(0)
+        self.address.put(0)
+        self.task = cotask.Task(self.readInfaredSensorTask,
+                                name='Infared Reading Task',
+                                priority=1, profile=True, trace=False)
+
+    def getCommand(self):
+        return self.command.get()
 
     def irISR(self, timerObject):
         ''' This method is the callback function for the interrupt pin. It runs
@@ -64,8 +81,12 @@ class Infared:
 
         # using the timerObject from the interrupt,collect the timestamp data
         # from the IR signal.
-        self.ir_data.put(timerObject.channel(self.channel).capture(),
-                         in_ISR=True)
+
+        if self.ir_data.num_in() > 68:
+            self.task.go()
+        if not self.ir_data.full():
+            self.ir_data.put(timerObject.channel(self.channel).capture(),
+                             in_ISR=True)
 
     def formattedBytes(self, rawBits):
         '''This method interprets a set of 32 bits into bytes
@@ -122,17 +143,18 @@ class Infared:
         commandByte, commandByteD = assignBytes(commandBits, True)
         ncommandByte = assignBytes(ncommandBits)
 
+        return addressByteD, commandByteD
         # return a formatted string as follows
-        return ('--------------- New Packet ---------------\n'
-                + '  RAW:  ' + rawBytes + '\n'
-                + ' ADDR:  ' + addressByte + '\n'
-                + 'nADDR:  ' + naddressByte + '\n'
-                + '  CMD:  ' + commandByte + '\n'
-                + ' nCMD:  ' + ncommandByte + '\n'
-                + '\n'
-                + 'Address (Decimal):  ' + str(addressByteD) + '\n'
-                + 'Command (Decimal):  ' + str(commandByteD) + '\n'
-                + '------------------------------------------')
+        # return ('--------------- New Packet ---------------\n'
+        #         + '  RAW:  ' + rawBytes + '\n'
+        #         + ' ADDR:  ' + addressByte + '\n'
+        #         + 'nADDR:  ' + naddressByte + '\n'
+        #         + '  CMD:  ' + commandByte + '\n'
+        #         + ' nCMD:  ' + ncommandByte + '\n'
+        #         + '\n'
+        #         + 'Address (Decimal):  ' + str(addressByteD) + '\n'
+        #         + 'Command (Decimal):  ' + str(commandByteD) + '\n'
+        #         + '------------------------------------------')
 
     def translateRawIRdata(self):
         ''' This nested function interprets the raw data and determines
@@ -151,112 +173,79 @@ class Infared:
         # initialize rawBits list
         rawBits = []
 
-        # init start flag to False
-        start = False
-
         # find the difference between falling edges
         for i in range(0, len(rawData) - 2, 2):
             delta = rawData[i+2] - rawData[i]
-
             # adjust data if overflowed
             if delta < 0:
                 delta = delta + 65535
-
-            # check if start flag is True
-            if start:
-
-                # check if binary low
-                if delta < 1300 and delta > 1000:
-                    rawBits.append(0)
-                # check if binary high
-                elif delta > 2100 and delta < 2400:
-                    rawBits.append(1)
-                else:
-                    # if somehow neither, clear the rawBits list
-                    # and set start flag to False then fall out to
-                    # next if statement
-                    print('not a valid bit. Delta = ' + str(delta))
-                    rawBits = []
-                    start = False
-
-                # if we have a full set of bits, clear the data list
-                # and return the rawBits list
-                if len(rawBits) == 32:
-                    self.data = []
-                    return rawBits
-            # check for start signal
-            if delta > 13000 and delta < 15000:
-                # if the start signal did not occur at the beginning
-                # of the list, then delete all the data leading up to
-                # it and break out of for loop to fall out and be
-                # re-evaluated
-                if i:
-                    del self.data[0:i]
-                    break
-
-                # otherwise set start flag and resume for loop
-                else:
-                    start = True
-                    continue
-            # if no start signal, check for a repeat signal
-            elif delta > 11000 and delta < 12500:
-                # if found, delete all the data associated with the repeat
-                # signal, then return 1
-                del self.data[i:i+4]
-                return 1
-
-            # the maximum pulse is ~9ms, so anything greater than that
-            # is invalid data.
-            elif self.data[i+1] - self.data[i] > 10000:
-                # if invalid data, delete that pulse and break out of for
-                # loop to fall out and be re-evaluated
-                del self.data[i:i+1]
-                break
-            # if we got this far then the signal was good, so continue
-            # through the for loop
+            if delta > 13300 and delta < 13700:
+                pass
+            # check if binary low
+            elif delta < 1300 and delta > 1000:
+                rawBits.append(0)
+            # check if binary high
+            elif delta > 2100 and delta < 2400:
+                rawBits.append(1)
             else:
-                continue
-        # if we fall out of the for loop without returning anything,
-        # then the data needs to refill to a length of 68 and then
-        # be re-evaluated. Return False
+                # if somehow neither, clear the rawBits list
+                # and set start flag to False then fall out to
+                # next if statement
+                print('not a valid bit. Delta = ' + str(delta))
+                self.clearData()
+                break
+
+            # if we have a full set of bits, clear the data list
+            # and return the rawBits list
+            if len(rawBits) == 32:
+                self.clearData()
+                return rawBits
+
         return False
+
+    def clearData(self):
+        self.data = []
+
+    def appendData(self):
+        self.data.append(self.ir_data.get())
 
     def readInfaredSensorTask(self):
         ''' This method reads the data stored in the queue and runs the
         interpretIRdata function when a true full set of pulses is found.
         '''
 
+        self.clearData()
         # Initialization for this task.
-        # Data is a class scoped list that is filled with timestamps
-        # from the ir_data queue
-        self.data = []
-
-        # run consistently (will have to yield for other tasks)
         while True:
-            while len(self.data) < 68:
-                # append timestamps to the data list until it has 68
-                # timestamps
-                self.data.append(self.ir_data.get())
+            # while len(self.data) < 68:
+            # append timestamps to the data list until it has 68
+            # timestamps
+            while len(self.data) < 3:
+                self.appendData()
+            if len(self.data) == 3:
+                pulse = 0
+                for i in range(0, 2):
+                    delta = self.data[i+1] - self.data[i]
+                    # adjust data if overflowed
+                    if delta < 0:
+                        delta = delta + 65535
+                    # print('fun' + str(delta))
+                    pulse += delta
+                if pulse > 13000 and pulse < 14000:
+                    # print('start')
+                    while len(self.data) < 68:
+                        self.appendData()
+                    translatedData = self.translateRawIRdata()
+                    address, command = self.formattedBytes(translatedData)
+                    self.address.put(address)
+                    self.command.put(command)
+                    print(command)
 
-            # successfulTranslate is set to the value returned from
-            # the translateRawIRdata function
-            successfulTranslate = self.translateRawIRdata()
-
-            # if translateRawIRdata returns the rawBits list
-            if type(successfulTranslate) == list:
-                # run the formattedBytes function to return the
-                # formatted string
-                formattedBytes = self.formattedBytes(successfulTranslate)
-                print(formattedBytes)
-
-            # if translateRawIRdata returns 1 (repeat code)
-            elif successfulTranslate == 1:
-                # print the last recieved formatted string
-                print(formattedBytes)
-
-            # if translateRawIRdata returns False, re-evaluate the data
-            # and then break out of the while loop to start at the top
-            # and be retested. Repeat until a set of rawBits is found
-            while not successfulTranslate:
-                successfulTranslate = self.translateRawIRdata()
-                break
+                    self.clearData()
+                    yield(0)
+                elif pulse > 11000 and pulse < 11500:
+                    # print('repeat')
+                    self.appendData()
+                    self.clearData()
+                else:
+                    print('bad')
