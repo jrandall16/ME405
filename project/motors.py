@@ -227,14 +227,13 @@ class Encoder:
         
         # using the adjusted position data, find the speed of the motor
         # in ticks per millisecond
-        tickspertime = (current_value - self.last_value) \
-                        / (current_time - self.last_time)
+        tickspertime = (delta)/ (current_time - self.last_time)
 
         # set the current value of time and position to the last value, so the
         # next time through a new change is computed
         self.last_value = current_value
         self.last_time = current_time
-        self.currentSpeed += tickspertime
+        self.currentSpeed = tickspertime
         return self.currentSpeed
 
     def zero (self):
