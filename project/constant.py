@@ -7,8 +7,7 @@ can be modified easily in one place. Constant names are self explained
 @author Jacob Randall and Connor Bush
 @date Sat Feb  22 10:59:12 2017
 """
-START = 17
-STOP = 18
+START = 12
 
 WHEEL_RADIUS = 0.75     # [in]
 KP = 1     # [analyze units]

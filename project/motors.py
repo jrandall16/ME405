@@ -60,19 +60,23 @@ class Drive:
     def zeroEncoders(self):
         self.ENC1.zero()
         self.ENC2.zero()
+    def read(self):
+        print('enc1 ' + str(self.ENC1.read()))
+        print('enc2 ' + str(self.ENC2.read()))
 
     def setPoints(self, point1, point2):
         if self.zero:
+            print('zeroing')
             self.zeroEncoders()
             self.MC1.setPoint(point1)
             self.MC2.setPoint(point2)
             self.zero = False
 
-        M1pos = self.ENC1.read()
-        M2pos = self.ENC2.read()
+        M1Pos = self.ENC1.read()
+        M2Pos = self.ENC2.read()
 
-        DC1, D1 = self.MC1.outputDutyCycle(self.ENC1.read())
-        DC2, D2 = self.MC2.outputDutyCycle(self.ENC2.read())
+        DC1, D1 = self.MC1.outputDutyCycle(M1Pos)
+        DC2, D2 = self.MC2.outputDutyCycle(M2Pos)
 
         self.M1.set_duty_cycle(DC1, D1)
         self.M2.set_duty_cycle(DC2, D2)
@@ -222,8 +226,6 @@ class MotorDriver:
         else:
             self.directionPin.high()
 
-            self.directionPin.high()
-
     def set_duty_cycle(self, level, direction):
         '''This method sets the duty cycle to be sent to the motor to the given
         level. Positive values cause torque in one direction, negative values
@@ -332,18 +334,14 @@ class Encoder:
         else:
             pass
         
-        # using the adjusted position data, find the speed of the motor
-        # in ticks per millisecond
-        tickspertime = (delta)/ (current_time - self.last_time)
-
-        # set the current value of time and position to the last value, so the
-        # next time through a new change is computed
         self.last_value = current_value
-        self.last_time = current_time
-        self.currentSpeed = tickspertime
-        return self.currentSpeed
+        self.current_position += delta
+        if self.adjust:
+            return -self.current_position
+        
+        return self.current_position
 
     def zero (self):
         ''' This method resets the encoders speed to zero. 
         '''    
-        self.currentSpeed = 0
+        self.current_position = 0

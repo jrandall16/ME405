@@ -48,7 +48,7 @@ def driveTask():
     state = STOP
     while True:
         if state == FORWARD:
-            if IR.getCommand() == C.STOP:
+            if IR.getCommand() != C.START:
                 state = STOP
                 yield(state)
             if turn.get():
@@ -59,7 +59,7 @@ def driveTask():
 
         elif state == REVERSE:
             turning.put(1)
-            if IR.getCommand() == C.STOP:
+            if IR.getCommand() != C.START:
                 state = STOP
                 yield(state)
             if DRIVE.reverseBeforeTurn():
@@ -68,7 +68,7 @@ def driveTask():
                 yield(state)
 
         elif state == TURN:
-            if IR.getCommand() == C.STOP:
+            if IR.getCommand() != C.START:
                 state = STOP
                 yield(state)
             turnState = turn.get()
@@ -97,7 +97,7 @@ def lineFollowerTask():
     state = OFF
     while True:
         if state == ANALYZE:
-            if IR.getCommand() == C.STOP:
+            if IR.getCommand() != C.START:
                 state = OFF
                 yield(state)
             sensorData = LF.analyzeSensorData()
@@ -122,7 +122,7 @@ def ultraSonicDistanceTask():
 
     while True:
         if state == ANALYZE1:
-            if IR.getCommand() == C.STOP:
+            if IR.getCommand() != C.START:
                 state = OFF1
                 yield(state)
             distance = US.distance_in_inches()
@@ -144,13 +144,13 @@ if __name__ == "__main__":
         print('\033[2JTesting scheduler in cotask.py\n')
 
         # intitialize motor task 1 using Task()
-        t1 = cotask.Task(driveTask, name='Drive Task', priority=2,
+        t1 = cotask.Task(driveTask, name='Drive Task', priority=1,
                          period=10, profile=True, trace=False)
 
         t2 = cotask.Task(lineFollowerTask, name='Line Follower Task',
-                         priority=2, period=50, profile=True, trace=False)
+                         priority=1, period=50, profile=True, trace=False)
         t3 = cotask.Task(ultraSonicDistanceTask, name='UltraSonic Distance Task',
-                         priority=3, period=50, profile=True, trace=False)
+                         priority=2, period=50, profile=True, trace=False)
         # add each task to the task list
         cotask.task_list.append(t1)
         cotask.task_list.append(t2)

@@ -67,7 +67,7 @@ class Infared:
         self.address.put(0)
         self.task = cotask.Task(self.readInfaredSensorTask,
                                 name='Infared Reading Task',
-                                priority=1, profile=True, trace=False)
+                                priority=5, profile=True, trace=False)
 
     def getCommand(self):
         return self.command.get()
@@ -82,7 +82,7 @@ class Infared:
         # using the timerObject from the interrupt,collect the timestamp data
         # from the IR signal.
 
-        if self.ir_data.num_in() > 68:
+        if self.ir_data.num_in() >= 68:
             self.task.go()
         if not self.ir_data.full():
             self.ir_data.put(timerObject.channel(self.channel).capture(),
@@ -179,7 +179,7 @@ class Infared:
             # adjust data if overflowed
             if delta < 0:
                 delta = delta + 65535
-            if delta > 13300 and delta < 13700:
+            if delta > 13000 and delta < 14000:
                 pass
             # check if binary low
             elif delta < 1300 and delta > 1000:
@@ -232,20 +232,23 @@ class Infared:
                     # print('fun' + str(delta))
                     pulse += delta
                 if pulse > 13000 and pulse < 14000:
-                    # print('start')
+                    # print('start' + str(delta))
                     while len(self.data) < 68:
                         self.appendData()
+                    # print(self.data)
                     translatedData = self.translateRawIRdata()
                     address, command = self.formattedBytes(translatedData)
                     self.address.put(address)
                     self.command.put(command)
-                    print(command)
+                    print('command' + str(command))
 
                     self.clearData()
                     yield(0)
                 elif pulse > 11000 and pulse < 11500:
-                    # print('repeat')
+                    # print('repeat' + str(delta))
                     self.appendData()
                     self.clearData()
                 else:
                     print('bad')
+                    del self.data[0:1]
+            yield(0)
