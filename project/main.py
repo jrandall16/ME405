@@ -36,107 +36,130 @@ turn = task_share.Share('I', thread_protect=False, name="turn")
 turn.put(0)
 turning = task_share.Share('I', thread_protect=False, name="turning")
 turning.put(0)
+# ultrasonic = task_share.Share('I', thread_protect=False, name="ultrasonic")
+# ultrasonic.put(0)
+
+# def driveTask():
+
+#     FORWARD = const(1)
+#     REVERSE = const(2)
+#     TURN = const(3)
+#     STOP = const(4)
+
+#     state = STOP
+#     while True:
+#         if state == FORWARD:
+#             if IR.getCommand() != C.START:
+#                 state = STOP
+#                 yield(state)
+#             if turn.get():
+#                 # print(turn.get())
+#                 state = REVERSE
+#                 yield(state)
+#             DRIVE.forward(20)
+
+#         elif state == REVERSE:
+#             turning.put(1)
+#             if IR.getCommand() != C.START:
+#                 state = STOP
+#                 yield(state)
+#             if DRIVE.reverseBeforeTurn():
+#                 state = TURN
+#                 DRIVE.zeroEncoders()
+#                 yield(state)
+
+#         elif state == TURN:
+#             if IR.getCommand() != C.START:
+#                 state = STOP
+#                 yield(state)
+#             turnState = turn.get()
+#             if DRIVE.turn(turnState):
+#                 state = FORWARD
+#                 DRIVE.zeroEncoders()
+#                 turning.put(0)
+#                 turn.put(0)
+#                 yield(state)
+
+#         elif state == STOP:
+#             if IR.getCommand() == C.START:
+#                 state = FORWARD
+#                 yield (state)
+#             DRIVE.stop()
+
+#         yield (state)
 
 
-def driveTask():
+# def lineFollowerTask():
+#     LF = lineFollower.LineFollower(P.QRT_EN, P.QRT_ARRAY, 10)
 
-    FORWARD = const(1)
-    REVERSE = const(2)
-    TURN = const(3)
-    STOP = const(4)
+#     OFF = const(0)
+#     ANALYZE = const(1)
 
-    state = STOP
-    while True:
-        if state == FORWARD:
-            if IR.getCommand() != C.START:
-                state = STOP
-                yield(state)
-            if turn.get():
-                print(turn.get())
-                state = REVERSE
-                yield(state)
-            DRIVE.forward(20)
-
-        elif state == REVERSE:
-            turning.put(1)
-            if IR.getCommand() != C.START:
-                state = STOP
-                yield(state)
-            if DRIVE.reverseBeforeTurn():
-                state = TURN
-                DRIVE.zeroEncoders()
-                yield(state)
-
-        elif state == TURN:
-            if IR.getCommand() != C.START:
-                state = STOP
-                yield(state)
-            turnState = turn.get()
-            if DRIVE.turn(turnState):
-                state = FORWARD
-                DRIVE.zeroEncoders()
-                turning.put(0)
-                turn.put(0)
-                yield(state)
-
-        elif state == STOP:
-            if IR.getCommand() == C.START:
-                state = FORWARD
-                yield (state)
-            DRIVE.stop()
-
-        yield (state)
-
-
-def lineFollowerTask():
-    LF = lineFollower.LineFollower(P.QRT_EN, P.QRT_ARRAY, 10)
-
-    OFF = const(0)
-    ANALYZE = const(1)
-
-    state = OFF
-    while True:
-        if state == ANALYZE:
-            if IR.getCommand() != C.START:
-                state = OFF
-                yield(state)
-            sensorData = LF.analyzeSensorData()
-            print(sensorData)
-            if turning.get() == 0:
-                turn.put(sensorData)
-            yield(state)
-        if state == OFF:
-            if IR.getCommand() == C.START:
-                state = ANALYZE
-                yield (state)
-        yield(state)
+#     state = OFF
+#     while True:
+#         if state == ANALYZE:
+#             if IR.getCommand() != C.START:
+#                 state = OFF
+#                 yield(state)
+#             sensorData = LF.analyzeSensorData()
+#             print(sensorData)
+#             if turning.get() == 0:
+#                 turn.put(sensorData)
+#             yield(state)
+#         if state == OFF:
+#             if IR.getCommand() == C.START:
+#                 state = ANALYZE
+#                 yield (state)
+#         yield(state)
 
 
 def ultraSonicDistanceTask():
-    US = ultrasonic.Ultrasonic(P.US_DIST_TRIG, P.US_DIST_ECHO)
+    US_1 = ultrasonic.Ultrasonic(P.US_DIST_TRIG, P.US_DIST_ECHO_1)
+    # US_2 = ultrasonic.Ultrasonic(P.US_DIST_TRIG, P.US_DIST_ECHO_2)
+    # US_3 = ultrasonic.Ultrasonic(P.US_DIST_TRIG, P.US_DIST_ECHO_3)
+    # US_4 = ultrasonic.Ultrasonic(P.US_DIST_TRIG, P.US_DIST_ECHO_4)
 
     OFF1 = const(0)
-    ANALYZE1 = const(1)
+    ANALYZE_US = const(1)
+    DONT_ANALYZE_US = const(2)
 
     state = OFF1
 
     while True:
-        if state == ANALYZE1:
-            if IR.getCommand() != C.START:
-                state = OFF1
-                yield(state)
-            distance = US.distance_in_inches()
-            if distance > 1 and distance < 4:
-                print('object detected')
-            else:
-                print('object not detected: ' + str(distance))
-            yield(state)
-        if state == OFF1:
-            if IR.getCommand() == C.START:
-                state = ANALYZE1
-                yield(state)
-        yield(state)
+        # if state == ANALYZE_US:
+        #     if IR.getCommand() != C.START:
+        #         state = OFF1
+        #         yield(state)
 
+            distance_rear = US_1.distance_in_inches()
+            # distance_front = US_2.distance_in_inches()
+            # distance_right = US_3.distance_in_inches()
+            # distance_left = US_4.distance_in_inches()
+
+            if distance_rear > 1 and distance_rear < 8:
+                print('object detected behind')
+                # turn.put()
+                # state = DONT_ANALYZE_US
+                # yield(state)
+            # elif distance_front > 1 and distance_front < 4:
+            #     print('object detected ahead')
+            #     # turn.put()
+            # elif distance_left > 1 and distance_left < 4:
+            #     print('object detected left')
+            #     # turn.put()
+            # elif distance_right > 1 and distance_right < 4:
+            #     print('object detected right')
+                # turn.put()
+
+            # yield(state)
+
+
+        # if state == OFF1:
+        #     if IR.getCommand() == C.START:
+        #         state = ANALYZE_US
+        #         yield(state)
+        # yield(state)
+        
 
 if __name__ == "__main__":
 
@@ -144,18 +167,18 @@ if __name__ == "__main__":
         print('\033[2JTesting scheduler in cotask.py\n')
 
         # intitialize motor task 1 using Task()
-        t1 = cotask.Task(driveTask, name='Drive Task', priority=1,
-                         period=10, profile=True, trace=False)
+        # t1 = cotask.Task(driveTask, name='Drive Task', priority=1,
+                        #  period=10, profile=True, trace=False)
 
-        t2 = cotask.Task(lineFollowerTask, name='Line Follower Task',
-                         priority=1, period=50, profile=True, trace=False)
+        # t2 = cotask.Task(lineFollowerTask, name='Line Follower Task',
+                        #  priority=1, period=50, profile=True, trace=False)
         t3 = cotask.Task(ultraSonicDistanceTask, name='UltraSonic Distance Task',
                          priority=2, period=50, profile=True, trace=False)
         # add each task to the task list
-        cotask.task_list.append(t1)
-        cotask.task_list.append(t2)
+        # cotask.task_list.append(t1)
+        # cotask.task_list.append(t2)
         cotask.task_list.append(t3)
-        cotask.task_list.append(IR.task)
+        # cotask.task_list.append(IR.task)
 
         # execute the task list using the priority attribute of each task
 

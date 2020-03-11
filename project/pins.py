@@ -62,17 +62,22 @@ SDA = pyb.Pin.board.PB9
 # SCL
 SCL = pyb.Pin.board.PB8
 
-# Distance sensor echo
-DIST_EN = pyb.Pin.board.PC8  # maybe
 
-# Distance sensor trigger
-DIST = pyb.Pin.board.PA9  # need to change
+# Ultrasonic Distance sensor 4 echo - left facing
+US_DIST_ECHO_4 = pyb.Pin.board.PB1  # set in pinout, can change if needed
 
-# Ultrasonic Distance sensor echo
-US_DIST_ECHO = pyb.Pin.board.PB14  # need to change
+# Ultrasonic Distance sensor 3 echo - right facing
+US_DIST_ECHO_3 = pyb.Pin.board.PC8  # set in pinout, can change if needed
+
+# Ultrasonic Distance sensor 2 echo - forward facing
+US_DIST_ECHO_2 = pyb.Pin.board.PB2  # changed4
+
+
+# Ultrasonic Distance sensor 1 echo - rear facing
+US_DIST_ECHO_1 = pyb.Pin.board.PB14  # set in pinout, can change if needed
 
 # Ultrasonic Distance sensor trigger
-US_DIST_TRIG = pyb.Pin.board.PB13  # need to change
+US_DIST_TRIG = pyb.Pin.board.PB13  # set in pinout, can change if needed
 
 # IR Reflectance Sensors
 QRT_EN = pyb.Pin.board.PC1
