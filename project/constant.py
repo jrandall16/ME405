@@ -10,7 +10,7 @@ can be modified easily in one place. Constant names are self explained
 START = 12
 
 WHEEL_RADIUS = 0.75     # [in]
-KP = .8     # [analyze units]
+KP = 1     # [analyze units]
 RATIO = 4.75       # ticks per degree (5.83 but had to adjust)
 
 MOT_FREQ = 16000

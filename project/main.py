@@ -75,7 +75,9 @@ def driveTask():
                 state = TURN
                 turning.put(1)
                 yield(state)
+
             DRIVE.forward(50)
+            yield(state)
 
         elif state == REVERSE:
             # if IR.getCommand() != C.START:
@@ -84,7 +86,8 @@ def driveTask():
             if DRIVE.reverseBeforeTurn():
                 state = TURN
                 # DRIVE.zeroEncoders()
-                yield(state)
+            yield(state)
+
 
         elif state == TURN:
             # if IR.getCommand() != C.START:
@@ -96,7 +99,7 @@ def driveTask():
                 # DRIVE.zeroEncoders()
                 turning.put(0)
                 turn.put(0)
-                yield(state)
+            yield(state)
 
         elif state == STOP:
             # if IR.getCommand() == C.START:
@@ -325,7 +328,7 @@ def ultraSonicDistanceTask():
             yield(state)
             
         if state == DONT_ANALYZE_US:
-            if turning.get == 0:
+            if turning.get() == 0:
                 state = ANALYZE_US
             
             # state = eStop(state)
@@ -344,16 +347,16 @@ if __name__ == "__main__":
 
         # intitialize motor task 1 using Task()
         t1 = cotask.Task(driveTask, name='Drive Task', priority=1,
-                         period=10, profile=True, trace=False)
+                         period=5, profile=True, trace=False)
 
         t2 = cotask.Task(lineFollowerTask, name='Line Follower Task',
                          priority=1, period=50, profile=True, trace=False)
         t3 = cotask.Task(ultraSonicDistanceTask, name='UltraSonic Distance Task',
-                         priority=2, period=100, profile=True, trace=False)
+                         priority=2, period=50, profile=True, trace=False)
            
         # add each task to the task list
         cotask.task_list.append(t1)
-        # cotask.task_list.append(t2)
+        cotask.task_list.append(t2)
         cotask.task_list.append(t3)
         cotask.task_list.append(IR.task)
 
