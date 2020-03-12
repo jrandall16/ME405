@@ -39,8 +39,8 @@ turning.put(0)
 
 us_front = task_share.Share('I', thread_protect=False, name="front approach")
 us_front.put(0)
-us_back = task_share.Share('I', thread_protect=False, name="back approach")
-us_back.put(0)
+us_rear = task_share.Share('I', thread_protect=False, name="back approach")
+us_rear.put(0)
 us_left = task_share.Share('I', thread_protect=False, name="left approach")
 us_left.put(0)
 us_right = task_share.Share('I', thread_protect=False, name="right approach")
@@ -59,44 +59,49 @@ def driveTask():
     TURN = const(3)
     STOP = const(4)
 
-    state = STOP
+    state = FORWARD
+    # state = STOP
     while True:
         if state == FORWARD:
-            if IR.getCommand() != C.START:
-                state = STOP
-                yield(state)
-            if turn.get():
+            # if IR.getCommand() != C.START:
+            #     state = STOP
+            #     yield(state)
+            if turn.get() >= 1 and turn.get() <= 3:
                 # print(turn.get())
                 state = REVERSE
+                turning.put(1)
                 yield(state)
-            DRIVE.forward(20)
+            elif turn.get() == 4:
+                state = TURN
+                turning.put(1)
+                yield(state)
+            DRIVE.forward(50)
 
         elif state == REVERSE:
-            turning.put(1)
-            if IR.getCommand() != C.START:
-                state = STOP
-                yield(state)
+            # if IR.getCommand() != C.START:
+            #     state = STOP
+            #     yield(state)
             if DRIVE.reverseBeforeTurn():
                 state = TURN
-                DRIVE.zeroEncoders()
+                # DRIVE.zeroEncoders()
                 yield(state)
 
         elif state == TURN:
-            if IR.getCommand() != C.START:
-                state = STOP
-                yield(state)
+            # if IR.getCommand() != C.START:
+            #     state = STOP
+            #     yield(state)
             turnState = turn.get()
             if DRIVE.turn(turnState): # will this let the bot turn?
                 state = FORWARD
-                DRIVE.zeroEncoders()
+                # DRIVE.zeroEncoders()
                 turning.put(0)
                 turn.put(0)
                 yield(state)
 
         elif state == STOP:
-            if IR.getCommand() == C.START:
-                state = FORWARD
-                yield (state)
+            # if IR.getCommand() == C.START:
+            #     state = FORWARD
+            #     yield (state)
             DRIVE.stop()
 
         yield (state)
@@ -108,12 +113,12 @@ def lineFollowerTask():
     OFF = const(0)
     ANALYZE = const(1)
 
-    state = OFF
+    state = ANALYZE
     while True:
         if state == ANALYZE:
-            if IR.getCommand() != C.START:
-                state = OFF
-            yield(state)
+            # if IR.getCommand() != C.START:
+            #     state = OFF
+            #     yield(state)
             sensorData = LF.analyzeSensorData()
             print(sensorData)
             if turning.get() == 0:
@@ -121,16 +126,11 @@ def lineFollowerTask():
             yield(state)
 
         if state == OFF:
-            if IR.getCommand() == C.START:
-                state = ANALYZE
+            # if IR.getCommand() == C.START:
+            #     state = ANALYZE
             yield (state)
 
         yield(state)
-
-def testTask():
-    while True:
-        print('test')
-        yield(0)
 
 def ultraSonicDistanceTask():
     '''Is a bot too close? Run away. Is a bot almost too close? Run away. Can
@@ -146,273 +146,189 @@ def ultraSonicDistanceTask():
     US_3 = ultrasonic.Ultrasonic(P.US_DIST_TRIG_3, P.US_DIST_ECHO_3)
     US_4 = ultrasonic.Ultrasonic(P.US_DIST_TRIG_4, P.US_DIST_ECHO_4)
 
-    OFF1 = const(0)
+    OFF1 = const(0) # pylint: disable=undefined-variable
     ANALYZE_US = const(1)
     ANALYZE_FRONT = const(2)
-    ANALYZE_BACK = const(3)
+    ANALYZE_REAR = const(3)
     ANALYZE_RIGHT = const(4)
     ANALYZE_LEFT = const(5)
-    DONT_ANALYZE_US = const(6)
+    ANALYZE_BOT = const(6)
+    DONT_ANALYZE_US = const(7)
 
     state = ANALYZE_US
 
-    while True:
+    def eStop(state):
+        if IR.getCommand() != C.START:
+            state = OFF1
+        return state
+
+    def checkForTurning(state):
+        if turning.get() != 0:
+            state = DONT_ANALYZE_US
+        return state
+
+    def checkSensor(state, direction, last_dir, last_prox):
+        if direction == 'front':
+            uSensor = US_2
+            share = us_front
+        elif direction == 'left':
+            uSensor = US_4
+            share = us_left
+        elif direction == 'right':
+            uSensor = US_3
+            share = us_right
+        elif direction == 'rear':
+            uSensor = US_1
+            share = us_rear
+
+        distance = uSensor.distance_in_inches()  
+
+
+        if distance < 12:
+            # print('FORWARD TRIG')
+            # print(distance_front)
+            level = 1
+            share.put(level)
+            # us_front.put(4)
+        # for a bot in approaching position from the front, turn 180 degress
+        # and drive away
+        elif distance > 12 and distance < 18:
+            # print('FORWARD TRIG')
+            # print(distance_front)
+            level = 2
+            share.put(level)
+            # us_front.put(3)
+
+        # for a bot in detected position from the front, turn 180 degrees 
+        # and drive away
+        elif distance > 18 and distance < 24:
+            # print('FORWARD TRIG')
+            # print(distance_front)
+            level = 3
+            share.put(level)
+
+        # if safe ahead, drive there
+        elif distance > 24 and distance < 30:
+            # print('safe ahead')
+            level = 4
+            share.put(level)
+
+        elif distance > 30:
+            # print('no threat')
+            # print(distance_front)
+            level = 5
+            share.put(level)
         
+        print(str('us ') + direction + ': ' + str(share.get()))
+
+        if share.get() != 5:
+            curr_dir = state - 1
+            curr_prox = share.get()
+            if last_prox < curr_prox:
+                curr_prox = last_prox
+                curr_dir = last_dir
+            else:
+                pass
+        else:
+            curr_prox = last_prox
+            curr_dir = last_dir
+
+        last_prox = curr_prox
+        last_dir = curr_dir
+        # print(str('incoming from: ') + str(us_current_dir.get()))
+        # print(str('proximity: ') + str(us_current_prox.get()))
+        
+        checkForTurning(state)
+
+        state = state + 1
+        return curr_dir, curr_prox, last_dir, last_prox, state
+
+    while True:
+
         if state == ANALYZE_US:
-            # if IR.getCommand() != C.START:
-            #     state = OFF1
-            #     yield(state)
-            
-            if turning.get() == 1:
-                state = DONT_ANALYZE_US
-                yield(state)
             
             state = ANALYZE_FRONT
-            last_prox = 0
-            last_dir = 0
+            last_prox = 5
+            last_dir = 1
+            # curr_dir = 1
+            # curr_prox = 5
+
+            state = checkForTurning(state)
+            # state = eStop(state)  
+            print(state)
             yield(state)
 
         if state == ANALYZE_FRONT:
-            # if IR.getCommand() != C.START:
-            #     state = OFF1
-            #     yield(state)
 
-            # 2 feet is a safe range of detection, so 2.5 feet is safer.
-            # Set different share values for directions detected.
-
-            distance_front = US_2.distance_in_inches()  
-            ## FRONT US SENSOR
-            # for a bot in closing position from the front, there is no time to 
-            # turn the full 180 degrees. Turn 90 degrees and drive away
-            if distance_front < 12:
-                # print('FORWARD TRIG')
-                # print(distance_front)
-                us_front.put(4)
-            # for a bot in approaching position from the front, turn 180 degress
-            # and drive away
-            elif distance_front > 12 and distance_front < 18:
-                # print('FORWARD TRIG')
-                # print(distance_front)
-                us_front.put(3)
-
-            # for a bot in detected position from the front, turn 180 degrees 
-            # and drive away
-            elif distance_front > 18 and distance_front < 24:
-                # print('FORWARD TRIG')
-                # print(distance_front)
-                us_front.put(2)
-
-            # if safe ahead, drive there
-            elif distance_front > 24 and distance_front < 30:
-                # print('safe ahead')
-                us_front.put(1)
-
-            elif distance_front > 30:
-                # print('no threat')
-                # print(distance_front)
-                us_front.put(0)
-
-            print(str('us_front: ') + str(us_front.get()))
-
-            if us_front.get() != 0:
-                curr_dir = ANALYZE_FRONT-1
-                curr_prox = us_front.get()
-                if last_prox > curr_prox
-                    curr_prox = last_prox
-                    curr_dir = last_dir
-                else:
-                    pass
-
-            print(str('incoming from: ') + str(us_current_dir.get()))
-            print(str('proximity: ') + str(us_current_prox.get()))
-            
-            state = ANALYZE_BACK
+            curr_dir, curr_prox, last_dir, last_prox, state = checkSensor(state,
+                                                'front', last_dir, last_prox)
+            state = checkForTurning(state)
+            # state = eStop(state)  
+            print(state)
             yield(state)
 
-        if state == ANALYZE_BACK:
-            # if IR.getCommand() != C.START:
-            #     state = OFF1
-            #     yield(state)
+        if state == ANALYZE_REAR:
             # REAR US SENSOR
             # for a bot in closing position from the rear, turn 90 degrees and drive away
-            
-            distance_back = US_1.distance_in_inches()    
-
-            if distance_back < 12:
-                # print('BEHIND TRIG')
-                # print(distance_back)
-                us_back.put(4)
-
-            # for a bot in approaching position from the rear, turn 90 degress and drive away
-            elif distance_back > 12 and distance_back < 18:
-                # print('BEHIND TRIG')
-                # print(distance_back)
-                us_back.put(3)
-
-            # for a bot in detected position from the rear, turn 90 degrees and drive away
-            elif distance_back > 18 and distance_back < 24:
-                # print('BEHIND TRIG')
-                # print(distance_back)
-                us_back.put(2)
-
-            # if safe behind, drive there
-            elif distance_back > 24 and distance_back < 30:
-                # print('safe behind')
-                us_back.put(1)
-
-            # if out of 30 inch range, bot is safe
-            elif distance_back > 30:
-                # print('no threat')
-                # print(distance_back)
-                us_back.put(0)
-
-            print(str('us_back: ') + str(us_back.get()))
-
-             if us_front.get() != 0:
-                last_dir = curr_dir
-                last_prox = curr_prox
-                curr_dir = ANALYZE_BACK-1
-                curr_prox = us_front.get()
-                if last_prox > curr_prox
-                    curr_prox = last_prox
-                    curr_dir = last_dir
-                else:
-                    pass
-            
-            print(str('incoming from: ') + str(us_current_dir.get()))
-            print(str('proximity: ') + str(us_current_prox.get()))
-            
-            state = ANALYZE_RIGHT
+            curr_dir, curr_prox, last_dir, last_prox, state = checkSensor(state,
+                                                'rear', last_dir, last_prox)
+            state = checkForTurning(state)
+            # state = eStop(state)            
+            print(state)
             yield(state)
 
         if state == ANALYZE_RIGHT:
-            # if IR.getCommand() != C.START:
-            #     state = OFF1
-            #     yield(state)
             ## RIGHT US SENSOR
             #for a bot in closing position from the right
            
-            distance_right = US_3.distance_in_inches()
-
-            if distance_right < 12:
-                # print('RIGHT TRIG')
-                # print(distance_right)
-                us_right.put(34)
-
-            # for a bot in approaching position from the front, turn 180 degress
-            # and drive away
-            elif distance_right > 12 and distance_right < 18:
-                # print('RIGHT TRIG')
-                # print(distance_right)
-                us_right.put(33)
-
-            # for a bot in detected position from the front, turn 180 degrees 
-            # and drive away
-            elif distance_right > 18 and distance_right < 24:
-                # print('RIGHT TRIG')
-                # print(distance_right)
-                us_right.put(32)
-
-            # if safe ahead, drive there
-            elif distance_right > 24 and distance_right < 30:
-                # print('space right')    
-                # print(distance_right)
-                us_right.put(31)
-            
-            elif distance_right > 30:
-                # print('no threat')
-                # print(distance_right)
-                us_right.put(30)
-
-            print(str('us_right: ') + str(us_right.get()))     
-
-            if us_right.get() != 0:
-                last_dir = curr_dir
-                last_prox = curr_prox
-                curr_dir = ANALYZE_RIGHT-1
-                curr_prox = us_right.get()
-            if last_prox > curr_prox
-                    curr_prox = last_prox
-                    curr_dir = last_dir
-                else:
-                    pass
-            print(str('incoming from: ') + str(us_current_dir.get()))
-            print(str('proximity: ') + str(us_current_prox.get()))
-
-
-            
-            state = ANALYZE_LEFT
+            curr_dir, curr_prox, last_dir, last_prox, state = checkSensor(state,
+                                                'right', last_dir, last_prox)
+            state = checkForTurning(state)
+            # state = eStop(state)            
+            print(state)
             yield(state)
 
         if state == ANALYZE_LEFT:
-            # if IR.getCommand() != C.START:
-            #     state = OFF1
-            #     yield(state)
+            eStop(state)
 
             # ## LEFT US SENSOR
             # for a bot in closing position from the left
-           
-            distance_left = US_4.distance_in_inches()
+            curr_dir, curr_prox, last_dir, last_prox, state = checkSensor(state,
+                                                'left', last_dir, last_prox)
 
-            if distance_left < 12:
-                # print('LEFT TRIG')
-                # print(distance_left)
-                us_left.put(44)
-
-            # for a bot in approaching position from the left
-            elif distance_left > 12 and distance_left < 18:
-                # print('LEFT TRIG')
-                # print(distance_left)
-                us_left.put(43)
-
-            # for a bot in detected position from the left, turn right and drive away
-            elif distance_left > 18 and distance_left < 24:
-                # print('LEFT TRIG')
-                # print(distance_left)
-                us_left.put(42)
-
-            # if safe left, drive there
-            elif distance_left > 24 and distance_left < 30:
-                # print('space left')    
-                us_left.put(41)
-
-            elif distance_left > 30:
-                # print('no threat')
-                # print(distance_left)
-                us_left.put(40)
-
-            print(str('us_left: ') + str(us_left.get()))
-
-            if us_left.get() != 0:
-                last_dir = curr_dir
-                last_prox = curr_prox
-                curr_dir = ANALYZE_LEFT-1
-                curr_prox = us_left.get()
-            if last_prox > curr_prox
-                    curr_prox = last_prox
-                    curr_dir = last_dir
-                else:
-                    pass       
-
-            print(str('incoming from: ') + str(us_current_dir.get()))
-            print(str('proximity: ') + str(us_current_prox.get()))
-            state = ANALYZE_BOT
+            state = checkForTurning(state)
+            # state = eStop(state)
+            print(state)
             yield(state)
 
-        if state == ANALYZE_BOT
-            #if IR.getCommand() != C.START:
-            #     state = OFF1
-            #     yield(state)
+        if state == ANALYZE_BOT:
+            print('analyze bot')
+
+            print(curr_dir)
+            print(curr_prox)
             us_current_dir.put(curr_dir)
             us_current_prox.put(curr_prox)
-            state = ANALYZE_FRONT
+
+            if curr_prox == 1:
+                if curr_dir == 1: # front
+                    turn.put(2)
+                elif curr_dir == 2: # back
+                    turn.put(4)
+                elif curr_dir == 3: # right
+                    turn.put(1)
+                elif curr_dir == 4: # left
+                    turn.put(1)
+                
+            state = ANALYZE_US
+            # state = eStop(state)
+            print(state)
             yield(state)
             
         if state == DONT_ANALYZE_US:
-            if turning.get == 1:
-                state = DONT_ANALYZE_US
             if turning.get == 0:
                 state = ANALYZE_US
+            
+            # state = eStop(state)
             yield(state)
 
         if state == OFF1:
@@ -433,14 +349,12 @@ if __name__ == "__main__":
         t2 = cotask.Task(lineFollowerTask, name='Line Follower Task',
                          priority=1, period=50, profile=True, trace=False)
         t3 = cotask.Task(ultraSonicDistanceTask, name='UltraSonic Distance Task',
-                         priority=2, period=50, profile=True, trace=False)
-        t4 = cotask.Task(testTask, name='Test Task',
-                         priority=2, period=5, profile=True, trace=False)                 
+                         priority=2, period=100, profile=True, trace=False)
+           
         # add each task to the task list
         cotask.task_list.append(t1)
-        cotask.task_list.append(t2)
+        # cotask.task_list.append(t2)
         cotask.task_list.append(t3)
-        cotask.task_list.append(t4)
         cotask.task_list.append(IR.task)
 
         # execute the task list using the priority attribute of each task
