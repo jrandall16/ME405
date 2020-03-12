@@ -40,7 +40,7 @@ class Drive:
         self.zero = True
 
     def reverseBeforeTurn(self):
-        if self.setPoints(-500, -500):
+        if self.setPoints(-250, -250):
             return True
         return False
 
@@ -51,6 +51,8 @@ class Drive:
             degrees = 90        # left turn
         if turnState == 3:
             degrees = 170       # 180 turn left (compensate for loss)
+        if turnState == 4:
+            degrees = -90       # right turn without reverse
 
         point = degrees * constant.RATIO
         if self.setPoints(point, -point):
@@ -60,6 +62,7 @@ class Drive:
     def zeroEncoders(self):
         self.ENC1.zero()
         self.ENC2.zero()
+
     def read(self):
         print('enc1 ' + str(self.ENC1.read()))
         print('enc2 ' + str(self.ENC2.read()))
@@ -82,14 +85,19 @@ class Drive:
         self.M2.set_duty_cycle(DC2, D2)
 
         if self.MC1.getError() and self.MC2.getError():
+            # print('MC1 ' + str(self.MC1.getError()) +
+            #       ' MC2 ' + str(self.MC2.getError()))
             self.zero = True
             return True
-
+        # else:
+        #     print('MC1 err: ' + str(self.MC1.getErrorValue()))
+        #     print('MC2 err: ' + str(self.MC2.getErrorValue()))
         return False
 
     def forward(self, level):
         self.M1.set_duty_cycle(level, 1)
         self.M2.set_duty_cycle(level, 1)
+        # self.read()
 
     def reverse(self, level):
         self.M1.set_duty_cycle(level, -1)
@@ -122,10 +130,12 @@ class MotorController:
         self.error = 0
 
     def getError(self):
-        print(self.error)
         if abs(self.error) <= abs(0.05 * self.setpoint):
             return True
         return False
+
+    def getErrorValue(self):
+        return self.error
 
     def outputDutyCycle(self, position):
         ''' This method runs the control algorithm and returns an error
@@ -247,26 +257,6 @@ class MotorDriver:
             self.forward()
             self.ch.pulse_width_percent(0)
 
-    def turn(self, amount):
-        '''This method turns the bot in increments of 90 degrees by setting the
-        pulse_width_percent for a duration of time according to how far of a
-        turn is requested.'''
-
-        if amount == 1:
-            self.set_duty_cycle('amount', 1)
-        elif amount == 3:
-            self.set_duty_cycle('amount', 1)
-        elif amount == 4:
-            self.set_duty_cycle('amount', 1)
-        elif amount == -1:
-            self.set_duty_cycle('amount', 2)
-        elif amount == -2:
-            self.set_duty_cycle('amount', 2)
-        elif amount == -3:
-            self.set_duty_cycle('amount', 2)
-        elif amount == -4:
-            self.set_duty_cycle('amount', 2)
-
 
 class Encoder:
     '''This class implements reading and resetting of the motor encoder.'''
@@ -333,15 +323,15 @@ class Encoder:
 
         else:
             pass
-        
+
         self.last_value = current_value
         self.current_position += delta
         if self.adjust:
             return -self.current_position
-        
+
         return self.current_position
 
-    def zero (self):
+    def zero(self):
         ''' This method resets the encoders speed to zero. 
-        '''    
+        '''
         self.current_position = 0

@@ -54,25 +54,32 @@ M1DIR = pyb.Pin.board.PA8
 M2DIR = pyb.Pin.board.PA9
 
 # IR input
-IR = pyb.Pin.board.PA15
+IR = pyb.Pin.board.PA5
 
-# SDA
-SDA = pyb.Pin.board.PB9
 
-# SCL
-SCL = pyb.Pin.board.PB8
+# Ultrasonic Distance sensor 4 echo - left facing
+US_DIST_ECHO_4 = pyb.Pin.board.PB14  # set in pinout, can change if needed
 
-# Distance sensor echo
-DIST_EN = pyb.Pin.board.PC8  # maybe
+# Ultrasonic Distance sensor 3 echo - right facing
+US_DIST_ECHO_3 = pyb.Pin.board.PC4  # set in pinout, can change if needed
 
-# Distance sensor trigger
-DIST = pyb.Pin.board.PA9  # need to change
+# Ultrasonic Distance sensor 2 echo - forward facing
+US_DIST_ECHO_2 = pyb.Pin.board.PB8  # changed
 
-# Ultrasonic Distance sensor echo
-US_DIST_ECHO = pyb.Pin.board.PB14  # need to change
+# Ultrasonic Distance sensor 1 echo - back facing
+US_DIST_ECHO_1 = pyb.Pin.board.PB9  # set in pinout, can change if needed
 
-# Ultrasonic Distance sensor trigger
-US_DIST_TRIG = pyb.Pin.board.PB13  # need to change
+# Ultrasonic Distance sensor 4 trigger - left facing
+US_DIST_TRIG_4 = pyb.Pin.board.PB13  # set in pinout, can change if needed
+
+# Ultrasonic Distance sensor 3 trigger - right facing
+US_DIST_TRIG_3 = pyb.Pin.board.PC0  # set in pinout, can change if needed
+
+# Ultrasonic Distance sensor 2 trigger - forward facing
+US_DIST_TRIG_2 = pyb.Pin.board.PC2  # set in pinout, can change if needed
+
+# Ultrasonic Distance sensor 1 trigger - back facing
+US_DIST_TRIG_1 = pyb.Pin.board.PC3  # set in pinout, can change if needed
 
 # IR Reflectance Sensors
 QRT_EN = pyb.Pin.board.PC1
@@ -80,7 +87,7 @@ QRT_EN = pyb.Pin.board.PC1
 QRT1 = pyb.Pin.board.PB4
 QRT2 = pyb.Pin.board.PA4
 QRT3 = pyb.Pin.board.PA0
-QRT4 = pyb.Pin.board.PA5
+QRT4 = pyb.Pin.board.PA15
 QRT5 = pyb.Pin.board.PB0
 QRT6 = pyb.Pin.board.PB5
 

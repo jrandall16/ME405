@@ -19,192 +19,179 @@ import motors
 import constant
 import pins
 
-## emergency is a transition variable that indicates the motor needs to stop
-emergency = task_share.Share ('I', thread_protect = False,
-                                name = "emergency stop")
+def ultraSonicDistanceTask():
+    '''Is a bot too close? Run away. Is a bot almost too close? Run away. Can
+    you see the bot? Run away. Running away is our bots survival tactic. If an
+    enemy bot is detected within a 2 foot square area, our bot will turn an
+    appropriate direction and continue running. The sensors are checked
+    in order, so the front and rear sensors must be checked first. The sensors
+    are sensitive, if anything is detected further than 30 inches away it is 
+    disregarded and the bot can run on.'''
 
-## desiredSpeed is the speed the controller is trying to reach
-desiredSpeed = task_share.Share ('I', thread_protect = False,
-                                    name = "desired speed")
+    US_1 = ultrasonic.Ultrasonic(P.US_DIST_TRIG_1, P.US_DIST_ECHO_1)
+    US_2 = ultrasonic.Ultrasonic(P.US_DIST_TRIG_2, P.US_DIST_ECHO_2)
+    US_3 = ultrasonic.Ultrasonic(P.US_DIST_TRIG_3, P.US_DIST_ECHO_3)
+    US_4 = ultrasonic.Ultrasonic(P.US_DIST_TRIG_4, P.US_DIST_ECHO_4)
 
-## currentSpeed is the current speed read from the encoder
-currentSpeed = task_share.Share ('I', thread_protect = False,
-                                    name = "current speed")
+    OFF1 = const(0) # pylint: disable=undefined-variable
+    ANALYZE_US = const(1)
+    ANALYZE_FRONT = const(2)
+    ANALYZE_REAR = const(3)
+    ANALYZE_RIGHT = const(4)
+    ANALYZE_LEFT = const(5)
+    ANALYZE_BOT = const(6)
+    DONT_ANALYZE_US = const(7)
 
-## level is the magnitude of ouptput DC voltage to the motor
-level = task_share.Share ('I', thread_protect = False, name = "DC level")
+    state = ANALYZE_US
 
-## direction is the direction the motor is turning
-# 1 -> forward
-# -1 -> backwards
-direction = task_share.Share ('I', thread_protect = False,
-                                name = "drive direction")
+    def eStop(state):
+        if IR.getCommand() != C.START:
+            state = OFF1
+        yield(state)
 
+    def checkForTurning(state):
+        if turning.get() != 0:
+            state = DONT_ANALYZE_US
+        yield(state)
 
+    def checkSensor(state, direction):
+        if direction == 'front':
+            uSensor = US_2
+            share = us_front
+        elif direction == 'left':
+            uSensor = US_4
+            share = us_left
+        elif direction == 'right':
+            uSensor = US_3
+            share = us_right
+        elif direction == 'rear':
+            uSensor = US_1
+            share = us_rear
 
-## variable indicating a turn.
-# 1 -> CW90    -1 -> CCW90
-# 2 -> CW180    -2 -> CCW180
-# 3 -> CW270    -3 -> CCW270
-# 4 -> CW360    -4 -> CCW360
-turn = task_share.Share ('I', thread_protect = False, name = "turn")
+        if state == ANALYZE_FRONT:
+            eStop(state)
 
+            # 2 feet is a safe range of detection, so 2.5 feet is safer.
+            # Set different share values for directions detected.
 
-###--------------------------------------------------------------------------###
+            distance = uSensor.distance_in_inches()  
+            ## FRONT US SENSOR
+            # for a bot in closing position from the front, there is no time to 
+            # turn the full 180 degrees. Turn 90 degrees and drive away
+            if distance < 12:
+                # print('FORWARD TRIG')
+                # print(distance_front)
+                level = 1
+                share.put(level)
+                # us_front.put(4)
+            # for a bot in approaching position from the front, turn 180 degress
+            # and drive away
+            elif distance > 12 and distance < 18:
+                # print('FORWARD TRIG')
+                # print(distance_front)
+                level = 2
+                share.put(level)
+                # us_front.put(3)
 
+            # for a bot in detected position from the front, turn 180 degrees 
+            # and drive away
+            elif distance > 18 and distance < 24:
+                # print('FORWARD TRIG')
+                # print(distance_front)
+                level = 3
+                share.put(level)
 
-## Define a task to drive motor_1
-def motor_1_driver ():
-    ''' This task drives motor_1 using input parameters level and direction.
-    This task has 3 states. 
-    State 1 runs the motor
-    State 2 runs the motor to turn the bot a set amount of degrees
-    State 3 stops the motor
-    '''
+            # if safe ahead, drive there
+            elif distance > 24 and distance < 30:
+                # print('safe ahead')
+                level = 4
+                share.put(level)
 
-    RUN = const(1)
-    TURN = const(2)
-    STOP = const(3)
-    
-    # init motorDriver
-    motor = motors.MotorDriver(pins.M1DIR, pins.M1PWM,
-                                constant.MOT_PWM_TIMER, constant.MOT1_PWM_CH,
-                                constant.MOT_FREQ)
+            elif distance > 30:
+                # print('no threat')
+                # print(distance_front)
+                level = 0
+                share.put(level)
+            
+            print(str('us_front: ') + str(us_front.get()))
 
-    state = STOP
+            if share.get() != 0:
+                curr_dir = state - 1
+                curr_prox = share.get()
+                if last_prox > curr_prox:
+                    curr_prox = last_prox
+                    curr_dir = last_dir
+                else:
+                    pass
+
+            # print(str('incoming from: ') + str(us_current_dir.get()))
+            # print(str('proximity: ') + str(us_current_prox.get()))
+            
+            checkForTurning(state)
+
+            state = state + 1
+            yield(state)
     while True:
-        if state == RUN:
-            # if emergency, transition to STOP state
-            if emergency:
-                motor.set_duty_cycle(0,0)
-                state = STOP
-            # if turn, transition to TURN state
-            elif turn:
-                state = TURN
-            # if none, 
-            else:
-                motor.set_duty_cycle(level, direction)
-                state = RUN
+        utime.sleep_ms(500)
+        if state == ANALYZE_US:
+
+            eStop(state)
+            
+            if turning.get() == 1:
+                state = DONT_ANALYZE_US
+                yield(state)
+            
+            state = ANALYZE_FRONT
+            last_prox = 0
+            last_dir = 0
+            curr_dir = 0
+            curr_prox = 0
             yield(state)
 
-        if state == TURN:
-            motor.turn(turn) 
-            # always transition to RUN state
-            state = RUN
+        if state == ANALYZE_FRONT:
+            eStop(state)
+
+            checkSensor(state, 'front')
+
+        if state == ANALYZE_REAR:
+            eStop(state)
+            # REAR US SENSOR
+            # for a bot in closing position from the rear, turn 90 degrees and drive away
+            checkSensor(state, 'rear')
+            
+            
+
+        if state == ANALYZE_RIGHT:
+            eStop(state)
+            ## RIGHT US SENSOR
+            #for a bot in closing position from the right
+           
+            checkSensor(state, 'right')
+
+        if state == ANALYZE_LEFT:
+            eStop(state)
+
+            # ## LEFT US SENSOR
+            # for a bot in closing position from the left
+            checkSensor(state, 'left')
+
+        if state == ANALYZE_BOT:
+            eStop(state)
+
+            us_current_dir.put(curr_dir)
+            us_current_prox.put(curr_prox)
+            print(curr_dir)
+            print(curr_prox)
+            state = ANALYZE_FRONT
+            yield(state)
+            
+        if state == DONT_ANALYZE_US:
+            eStop(state)
+            if turning.get == 0:
+                state = ANALYZE_US
             yield(state)
 
-        if state == STOP:
-            # if emergency is cleared, return to RUN state
-            if not emergency:
-                state = RUN
-            # if emergency is not cleared,
-            # remain in STOP state and set PWM signal to 0.
-            else:
-                motor.set_duty_cycle(0,0)
-                state = STOP
+        if state == OFF1:
+            if IR.getCommand() == C.START:
+                state = ANALYZE_US
             yield(state)
-
-## Define a task to control motor_1
-def motor_1_controller ():
-    ''' This task controls motor_1 using input parameters Kp,
-    desiredSpeed, and currentSpeed. This task has 2 states.
-    State 1 runs the controller with the current input parameters
-    State 2 runs the controller with the necessary input parameters to turn
-    State 3 stops the motor if emergency
-    '''
-    RUN = const(1)
-    TURN = const(2)
-    STOP = const(3)
-
-    ## call class Controller()
-    controller = motors.MotorController(constant.KP)
-    state = STOP
-    while True:
-        if state == RUN:
-            # if emergency, transition to STOP state
-            if emergency:
-                state = STOP
-            # if turn, transition to TURN state
-            elif turn:
-                state = TURN
-            # if none, continue in RUN state with the input values
-            else:
-                controller.outputDC(currentSpeed)
-                controller.setDesiredSpeed(desiredSpeed)
-                state = RUN
-
-            yield(state)
-
-
-        # make a turn specified by the shares
-        # if state == TURN:
-        #     if cw90deg:
-        #         controller.outputSpeed(currentSpeed)
-        #         controller.setKp(Kp)
-        #         controller.setDesiredSpeed(desiredSpeed)
-        #     elif cw180deg:
-        #         controller.outputSpeed(currentSpeed)
-        #         controller.setKp(Kp)
-        #         controller.setDesiredSpeed(desiredSpeed)
-        #     elif cw360deg:
-        #         controller.outputSpeed(currentSpeed)
-        #         controller.setKp(Kp)
-        #         controller.setDesiredSpeed(desiredSpeed)
-        #     elif ccw90deg:
-        #         controller.outputSpeed(currentSpeed)
-        #         controller.setKp(Kp)
-        #         controller.setDesiredSpeed(desiredSpeed)
-        #     elif ccw90deg:
-        #         controller.outputSpeed(currentSpeed)
-        #         controller.setKp(Kp)
-        #         controller.setDesiredSpeed(desiredSpeed)
-        #     elif ccw90deg:
-        #         controller.outputSpeed(currentSpeed)
-        #         controller.setKp(Kp)
-        #         controller.setDesiredSpeed(desiredSpeed)
-
-            # always transition to RUN state
-            state = RUN
-            yield(state)
-
-        if state == STOP:
-            # if emergency is cleared, transition to RUN state
-            if not emergency:
-                state = RUN
-
-            # if emergency is not cleared, set desiredSpeed to 0
-            # and remain in STOP state
-            else:
-                controller.setDesiredSpeed(0)
-                state = STOP
-            yield(state)
-
-## Define a task to read the encoder on motor_1
-def motor_1_encoder():
-    ''' This task runs the motor_1 encoder using no input parameters
-    encoderpinA, channelA, encoderpinB, channelB, and timer.
-    This task has 2 states.
-    State 1: This state reads the encoder and outputs the current speed
-    State 2: This state resets the encoder to zero
-    '''
-    READ = const(1)
-    RESET = const(2)
-
-    ## call class Encoder()
-    encoder = motors.Encoder (pins.ENC1A, constant.ENC1A_CH, pins.ENC1B,
-                                constant.ENC1B_CH, constant.ENC1_TIMER)
-
-    state = RESET
-    while True:
-        if state == READ:
-            if emergency:
-                state = RESET
-            else:
-                encoder.read()
-                state = READ
-        if state == RESET:
-            if not emergency:
-                state = READ
-                encoder.zero()
-            else:
-                state = RESET

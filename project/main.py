@@ -14,9 +14,13 @@ import infared
 import gc
 
 # comment these out after deploying code
-M1 = M.MotorDriver(P.M1DIR, P.M1PWM, C.MOT_PWM_TIMER,
+# M1 = M.MotorDriver(P.M1DIR, P.M1PWM, C.MOT_PWM_TIMER,
+#                    C.MOT1_PWM_CH, C.MOT_FREQ, True)
+# M2 = M.MotorDriver(P.M2DIR, P.M2PWM, C.MOT_PWM_TIMER,
+#                    C.MOT2_PWM_CH, C.MOT_FREQ, False)
+M1 = M.MotorDriver(P.M1DIR, P.M1PWM, C.MOT1_PWM_TIMER,
                    C.MOT1_PWM_CH, C.MOT_FREQ, True)
-M2 = M.MotorDriver(P.M2DIR, P.M2PWM, C.MOT_PWM_TIMER,
+M2 = M.MotorDriver(P.M2DIR, P.M2PWM, C.MOT2_PWM_TIMER,
                    C.MOT2_PWM_CH, C.MOT_FREQ, False)
 MC1 = M.MotorController()
 MC2 = M.MotorController()
@@ -37,6 +41,23 @@ turn.put(0)
 turning = task_share.Share('I', thread_protect=False, name="turning")
 turning.put(0)
 
+us_front = task_share.Share('I', thread_protect=False, name="front approach")
+us_front.put(0)
+us_rear = task_share.Share('I', thread_protect=False, name="back approach")
+us_rear.put(0)
+us_left = task_share.Share('I', thread_protect=False, name="left approach")
+us_left.put(0)
+us_right = task_share.Share('I', thread_protect=False, name="right approach")
+us_right.put(0)
+us_last = task_share.Share('I', thread_protect=False, name="last approach")
+us_last.put(0)
+us_current_dir = task_share.Share(
+    'I', thread_protect=False, name="incoming bot side")
+us_current_dir.put(0)
+us_current_prox = task_share.Share(
+    'I', thread_protect=False, name="current proximity")
+us_current_prox.put(0)
+
 
 def driveTask():
 
@@ -45,51 +66,59 @@ def driveTask():
     TURN = const(3)
     STOP = const(4)
 
+    def eStop(state):
+        if IR.getCommand() != C.START:
+            state = STOP
+        return state
+
     state = STOP
     while True:
         if state == FORWARD:
-            if IR.getCommand() != C.START:
-                state = STOP
-                yield(state)
-            if turn.get():
-                print(turn.get())
+            if turn.get() >= 1 and turn.get() <= 3:
                 state = REVERSE
+                turning.put(1)
                 yield(state)
+            elif turn.get() == 4:
+                state = TURN
+                turning.put(1)
+                yield(state)
+
             DRIVE.forward(20)
+            state = eStop(state)
+            yield(state)
 
         elif state == REVERSE:
-            turning.put(1)
-            if IR.getCommand() != C.START:
-                state = STOP
-                yield(state)
+
             if DRIVE.reverseBeforeTurn():
                 state = TURN
-                DRIVE.zeroEncoders()
-                yield(state)
+            state = eStop(state)
+            yield(state)
 
         elif state == TURN:
-            if IR.getCommand() != C.START:
-                state = STOP
-                yield(state)
             turnState = turn.get()
             if DRIVE.turn(turnState):
                 state = FORWARD
-                DRIVE.zeroEncoders()
                 turning.put(0)
                 turn.put(0)
-                yield(state)
+            state = eStop(state)
+            yield(state)
 
         elif state == STOP:
             if IR.getCommand() == C.START:
                 state = FORWARD
-                yield (state)
             DRIVE.stop()
+            yield(state)
 
-        yield (state)
+        yield(state)
 
 
 def lineFollowerTask():
     LF = lineFollower.LineFollower(P.QRT_EN, P.QRT_ARRAY, 10)
+
+    def eStop(state):
+        if IR.getCommand() != C.START:
+            state = OFF
+        return state
 
     OFF = const(0)
     ANALYZE = const(1)
@@ -97,45 +126,185 @@ def lineFollowerTask():
     state = OFF
     while True:
         if state == ANALYZE:
-            if IR.getCommand() != C.START:
-                state = OFF
-                yield(state)
             sensorData = LF.analyzeSensorData()
-            print(sensorData)
+            print('sensor: ' + str(sensorData))
             if turning.get() == 0:
                 turn.put(sensorData)
+
+            state = eStop(state)
             yield(state)
+
         if state == OFF:
             if IR.getCommand() == C.START:
                 state = ANALYZE
-                yield (state)
+            yield (state)
+
         yield(state)
 
 
 def ultraSonicDistanceTask():
-    US = ultrasonic.Ultrasonic(P.US_DIST_TRIG, P.US_DIST_ECHO)
+    '''Is a bot too close? Run away. Is a bot almost too close? Run away. Can
+    you see the bot? Run away. Running away is our bots survival tactic. If an
+    enemy bot is detected within a 2 foot square area, our bot will turn an
+    appropriate direction and continue running. The sensors are checked
+    in order, so the front and rear sensors must be checked first. The sensors
+    are sensitive, if anything is detected further than 30 inches away it is 
+    disregarded and the bot can run on.'''
 
-    OFF1 = const(0)
-    ANALYZE1 = const(1)
+    US_1 = ultrasonic.Ultrasonic(P.US_DIST_TRIG_1, P.US_DIST_ECHO_1)
+    US_2 = ultrasonic.Ultrasonic(P.US_DIST_TRIG_2, P.US_DIST_ECHO_2)
+    US_3 = ultrasonic.Ultrasonic(P.US_DIST_TRIG_3, P.US_DIST_ECHO_3)
+    US_4 = ultrasonic.Ultrasonic(P.US_DIST_TRIG_4, P.US_DIST_ECHO_4)
+
+    OFF1 = const(0)  # pylint: disable=undefined-variable
+    ANALYZE_US = const(1)
+    ANALYZE_FRONT = const(2)
+    ANALYZE_REAR = const(3)
+    ANALYZE_RIGHT = const(4)
+    ANALYZE_LEFT = const(5)
+    ANALYZE_BOT = const(6)
+    DONT_ANALYZE_US = const(7)
 
     state = OFF1
 
-    while True:
-        if state == ANALYZE1:
-            if IR.getCommand() != C.START:
-                state = OFF1
-                yield(state)
-            distance = US.distance_in_inches()
-            if distance > 1 and distance < 4:
-                print('object detected')
+    def eStop(state):
+        if IR.getCommand() != C.START:
+            state = OFF1
+        return state
+
+    def checkForTurning(state):
+        if turning.get() != 0:
+            state = DONT_ANALYZE_US
+        return state
+
+    def checkSensor(state, direction, last_dir, last_prox):
+        if direction == 'front':
+            uSensor = US_2
+            share = us_front
+        elif direction == 'left':
+            uSensor = US_4
+            share = us_left
+        elif direction == 'right':
+            uSensor = US_3
+            share = us_right
+        elif direction == 'rear':
+            uSensor = US_1
+            share = us_rear
+
+        distance = uSensor.distance_in_inches()
+
+        if distance < 6:
+            level = 1
+            share.put(level)
+        elif distance > 6 and distance < 18:
+            level = 2
+            share.put(level)
+        elif distance > 18 and distance < 24:
+            level = 3
+            share.put(level)
+        elif distance > 24 and distance < 30:
+            level = 4
+            share.put(level)
+        elif distance > 30:
+            level = 5
+            share.put(level)
+
+        print(str('us ') + direction + ': ' + str(share.get()))
+        print(str('us ') + direction + ': ' + str(distance))
+
+        if share.get() != 5:
+            curr_dir = state - 1
+            curr_prox = share.get()
+            if last_prox < curr_prox:
+                curr_prox = last_prox
+                curr_dir = last_dir
             else:
-                print('object not detected: ' + str(distance))
+                pass
+        else:
+            curr_prox = last_prox
+            curr_dir = last_dir
+
+        last_prox = curr_prox
+        last_dir = curr_dir
+
+        state = state + 1
+        state = checkForTurning(state)
+        state = eStop(state)
+        return curr_dir, curr_prox, last_dir, last_prox, state
+
+    while True:
+
+        if state == ANALYZE_US:
+
+            state = ANALYZE_FRONT
+            last_prox = 5
+            last_dir = 1
+
+            state = checkForTurning(state)
+            state = eStop(state)
             yield(state)
+
+        if state == ANALYZE_FRONT:
+
+            curr_dir, curr_prox, last_dir, last_prox, state = \
+                checkSensor(state, 'front', last_dir, last_prox)
+            yield(state)
+
+        if state == ANALYZE_REAR:
+            # REAR US SENSOR
+            # for a bot in closing position from the rear, turn 90 degrees and drive away
+            curr_dir, curr_prox, last_dir, last_prox, state = \
+                checkSensor(state, 'rear', last_dir, last_prox)
+            yield(state)
+
+        if state == ANALYZE_RIGHT:
+            # RIGHT US SENSOR
+            # for a bot in closing position from the right
+
+            curr_dir, curr_prox, last_dir, last_prox, state = \
+                checkSensor(state, 'right', last_dir, last_prox)
+            yield(state)
+
+        if state == ANALYZE_LEFT:
+
+            # ## LEFT US SENSOR
+            # for a bot in closing position from the left
+            curr_dir, curr_prox, last_dir, last_prox, state = \
+                checkSensor(state, 'left', last_dir, last_prox)
+
+            yield(state)
+
+        if state == ANALYZE_BOT:
+            print('analyze bot')
+
+            print(curr_dir)
+            print(curr_prox)
+            us_current_dir.put(curr_dir)
+            us_current_prox.put(curr_prox)
+
+            if curr_prox == 1:
+                if curr_dir == 1:  # front
+                    turn.put(2)
+                elif curr_dir == 2:  # back
+                    turn.put(4)
+                elif curr_dir == 3:  # right
+                    turn.put(1)
+                elif curr_dir == 4:  # left
+                    turn.put(1)
+
+            state = ANALYZE_US
+            eStop(state)
+            yield(state)
+
+        if state == DONT_ANALYZE_US:
+            if turning.get() == 0:
+                state = ANALYZE_US
+            yield(state)
+
         if state == OFF1:
             if IR.getCommand() == C.START:
-                state = ANALYZE1
-                yield(state)
-        yield(state)
+                state = ANALYZE_US
+            yield(state)
 
 
 if __name__ == "__main__":
@@ -151,6 +320,7 @@ if __name__ == "__main__":
                          priority=1, period=50, profile=True, trace=False)
         t3 = cotask.Task(ultraSonicDistanceTask, name='UltraSonic Distance Task',
                          priority=2, period=50, profile=True, trace=False)
+
         # add each task to the task list
         cotask.task_list.append(t1)
         cotask.task_list.append(t2)

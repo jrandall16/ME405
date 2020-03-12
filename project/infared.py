@@ -26,7 +26,6 @@ class Infared:
         @param timer: timer is the timer the interrupt pin will use
         @param channel: channel is the channel the timer will use
         '''
-
         #----------------------------------------------------------------------#
         # Allocate memory so that exceptions raised in interrupt service
         # routines can generate useful diagnostic printouts
@@ -249,6 +248,6 @@ class Infared:
                     self.appendData()
                     self.clearData()
                 else:
-                    print('bad')
+                    print('bad pulse ' + str(pulse))
                     del self.data[0:1]
             yield(0)

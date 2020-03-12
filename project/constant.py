@@ -7,15 +7,16 @@ can be modified easily in one place. Constant names are self explained
 @author Jacob Randall and Connor Bush
 @date Sat Feb  22 10:59:12 2017
 """
-START = 12
+START = 17
 
 WHEEL_RADIUS = 0.75     # [in]
-KP = 1     # [analyze units]
+KP = .5     # [analyze units]
 RATIO = 4.75       # ticks per degree (5.83 but had to adjust)
 
 MOT_FREQ = 16000
-MOT_PWM_TIMER = 3
-MOT1_PWM_CH = 2
+MOT1_PWM_TIMER = 17
+MOT1_PWM_CH = 1
+MOT2_PWM_TIMER = 16
 MOT2_PWM_CH = 1
 
 ENC1_TIMER = 4
